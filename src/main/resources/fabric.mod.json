@@ -1,18 +1,20 @@
 {
   "schemaVersion": 1,
-  "id": "mineseller",
+  "id": "advanced-economics",
   "version": "${version}",
-  "name": "MineSeller",
-  "description": "Adds simple /sell, /buy, and /money commands.",
+  "name": "Advanced Economics",
+  "description": "Adds economy, shop, investments, and money commands.",
   "authors": [
-    "pc"
+    "pc",
+    "xlavreniuk"
   ],
   "contact": {},
+  "icon": "assets/advanced-economics/icon.png",
   "license": "MIT",
   "environment": "*",
   "entrypoints": {
     "main": [
-      "com.example.mineseller.MineSellerMod"
+      "com.example.advancedeconomics.AdvancedEconomicsMod"
     ]
   },
   "depends": {
