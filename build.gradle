@@ -7,7 +7,7 @@ version = project.mod_version
 group = project.maven_group
 
 base {
-    archivesName = project.archives_base_name
+    archivesName = "${project.archives_base_name}-${project.mod_platform}-${project.minecraft_version}"
 }
 
 loom {
@@ -33,7 +33,9 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 java {
-    withSourcesJar()
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
 
     sourceCompatibility = JavaVersion.VERSION_25
     targetCompatibility = JavaVersion.VERSION_25

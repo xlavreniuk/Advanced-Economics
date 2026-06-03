@@ -1,0 +1,18 @@
+{
+  "players": {
+    "469ed5b0-d521-3c7e-a5b2-0fa0ad8523cf": {
+      "money": 0,
+      "investment": 0,
+      "loan": 0,
+      "professionSales": 0,
+      "dailyQuestDay": -1,
+      "completedProfessionQuests": [],
+      "playerInsurance": false,
+      "insuredPets": [],
+      "unlockedItems": [],
+      "unlockSources": {},
+      "gambleHistory": [],
+      "welcomeHintShown": true
+    }
+  }
+}

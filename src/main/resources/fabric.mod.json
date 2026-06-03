@@ -3,18 +3,20 @@
   "id": "advanced-economics",
   "version": "${version}",
   "name": "Advanced Economics",
-  "description": "Adds economy, shop, investments, and money commands.",
+  "description": "World-scoped economy, shop, quests, professions, investments, and money commands.",
   "authors": [
-    "pc",
-    "xlavreniuk"
+    "xlvr"
   ],
   "contact": {},
-  "icon": "assets/advanced-economics/icon.png",
-  "license": "MIT",
+  "icon": "image.jpg",
+  "license": "BSL-1.1",
   "environment": "*",
   "entrypoints": {
     "main": [
       "com.example.advancedeconomics.AdvancedEconomicsMod"
+    ],
+    "client": [
+      "com.example.advancedeconomics.AdvancedEconomicsClient"
     ]
   },
   "depends": {
@@ -22,5 +24,23 @@
     "minecraft": "~26.1.2",
     "java": ">=25",
     "fabric-api": "*"
+  },
+  "suggests": {
+    "modmenu": "*",
+    "jei": "*",
+    "roughlyenoughitems": "*",
+    "emi": "*"
+  },
+  "custom": {
+    "advanced-economics": {
+      "platform": "fabric",
+      "modpack_friendly": true,
+      "optional_integrations": [
+        "Mod Menu",
+        "JEI",
+        "REI",
+        "EMI"
+      ]
+    }
   }
 }
