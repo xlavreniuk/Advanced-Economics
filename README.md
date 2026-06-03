@@ -4,6 +4,11 @@ Advanced Economics is a Fabric economy mod for Minecraft `26.1.2`. It adds world
 
 Each world keeps its own economy data. Player balances, investments, loans, unlocks, quests, professions, insurance, and history do not carry between worlds.
 
+# Links
+https://modrinth.com/mod/advanced-economics
+
+https://www.curseforge.com/minecraft/mc-mods/advanced-economics
+
 ## Requirements
 
 - Minecraft `26.1.2`
