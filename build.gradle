@@ -36,7 +36,7 @@ subprojects {
 }
 
 task copyArtifactsToBuildFolder {
-    description = "Collects built mod jars into separate source, fabric, and neoforge subfolders inside build/"
+    description = "Collects built mod jars into separate subfolders inside build/ and auto-deploys to Prism Launcher"
     dependsOn subprojects.collect { it.tasks.matching { t -> t.name == 'jar' || t.name == 'remapJar' } }
 
     doLast {
@@ -51,6 +51,16 @@ task copyArtifactsToBuildFolder {
         copy {
             from project(':neoforge').layout.buildDirectory.dir("libs")
             into "${rootDir}/build/neoforge"
+        }
+
+        // Auto-deploy Fabric mod to Prism Launcher instance mods directory if present
+        def prismModsDir = file("${System.getProperty('user.home')}/Library/Application Support/PrismLauncher/instances/26.2 - Fabric/minecraft/mods")
+        if (prismModsDir.exists()) {
+            copy {
+                from project(':fabric').layout.buildDirectory.dir("libs")
+                into prismModsDir
+            }
+            println "Auto-deployed newest Fabric mod jar to Prism Launcher: ${prismModsDir.path}"
         }
     }
 }
