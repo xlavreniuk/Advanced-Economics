@@ -38,14 +38,13 @@ public class EconomicsFabricClient implements ClientModInitializer {
             // Listen on each client tick for key presses
             ClientTickEvents.END_CLIENT_TICK.register(client -> {
                 try {
+                    // Guard: only handle key when actually in a world
+                    if (client.level == null) return;
                     while (openBoxKey.consumeClick()) {
-                        // MC 26.2: screen is on client.gui, not client directly
                         if (client.gui.screen() instanceof EconomicsBoxScreen) {
-                            // Close if already open
                             client.gui.setScreen(null);
                             AdvancedEconomicsCommon.LOGGER.info("Closed Advanced Economics UI Box.");
                         } else if (client.gui.screen() == null) {
-                            // Open the screen
                             client.gui.setScreen(new EconomicsBoxScreen());
                             AdvancedEconomicsCommon.LOGGER.info("Opened Advanced Economics UI Box.");
                         }
