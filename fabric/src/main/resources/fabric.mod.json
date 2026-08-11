@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "advanced_economics",
-  "version": "0.1",
+  "version": "0.2",
   "name": "Advanced Economics",
   "description": "A multi-loader economics mod built with UI Lib. Press 'N' to toggle centered UI Box.",
   "authors": [
@@ -25,6 +25,7 @@
   "depends": {
     "fabricloader": ">=0.15.0",
     "minecraft": "~1.20.4",
-    "java": ">=17"
+    "java": ">=17",
+    "ui-lib": ">=1.0.0"
   }
 }

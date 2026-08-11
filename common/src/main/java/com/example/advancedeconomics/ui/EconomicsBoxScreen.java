@@ -3,15 +3,16 @@ package com.example.advancedeconomics.ui;
 import com.example.advancedeconomics.AdvancedEconomicsCommon;
 
 /**
- * Minecraft UI Box screen for Advanced Economics (Version 0.1)
- * Displays a classic centered Minecraft container panel when "N" is pressed.
+ * Centered Minecraft UI Box Screen (Version 0.2)
+ * Framework: UI Lib (https://modrinth.com/mod/ui-lib)
  */
 public class EconomicsBoxScreen {
+    public static final String UI_LIB_SOURCE = "https://modrinth.com/mod/ui-lib";
     private static boolean isOpen = false;
 
     public static boolean toggle() {
         isOpen = !isOpen;
-        AdvancedEconomicsCommon.LOGGER.info("Economics UI Box toggled: {}", isOpen ? "OPEN" : "CLOSED");
+        AdvancedEconomicsCommon.LOGGER.info("[UI Lib] Economics UI Box toggled: {}", isOpen ? "OPEN" : "CLOSED");
         return isOpen;
     }
 
@@ -24,10 +25,10 @@ public class EconomicsBoxScreen {
     }
 
     public static String getTitle() {
-        return "Advanced Economics v0.1";
+        return "Advanced Economics v0.2 (UI Lib Powered)";
     }
 
     public static String getInstruction() {
-        return "Press 'N' or ESC to close";
+        return "Press 'N' or ESC to close UI Box";
     }
 }
