@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "advanced_economics",
+  "version": "${version}",
+  "name": "Advanced Economics",
+  "description": "A multi-loader economics mod built with UI Lib.",
+  "authors": [
+    "Mod Creator"
+  ],
+  "contact": {
+    "homepage": "https://modrinth.com/mod/ui-lib"
+  },
+  "license": "MIT",
+  "icon": "assets/advanced_economics/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.example.advancedeconomics.fabric.AdvancedEconomicsFabric"
+    ]
+  },
+  "mixins": [],
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "~1.20.4",
+    "java": ">=17",
+    "ui-lib": "*"
+  }
+}

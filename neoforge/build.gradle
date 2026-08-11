@@ -1,0 +1,9 @@
+plugins {
+    id 'java'
+}
+
+dependencies {
+    implementation project(':common')
+    // UI Lib NeoForge dependency (Modrinth: https://modrinth.com/mod/ui-lib)
+    implementation "maven.modrinth:${project.ui_lib_modrinth_slug}:${project.ui_lib_version}"
+}

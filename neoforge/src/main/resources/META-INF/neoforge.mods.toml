@@ -1,0 +1,31 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="MIT"
+
+[[mods]]
+modId="advanced_economics"
+version="${file.jarVersion}"
+displayName="Advanced Economics"
+authors="Mod Creator"
+description="A multi-loader economics mod built with UI Lib."
+
+[[dependencies.advanced_economics]]
+    modId="neoforge"
+    type="required"
+    versionRange="[20.4.0,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.advanced_economics]]
+    modId="minecraft"
+    type="required"
+    versionRange="[1.20.4,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.advanced_economics]]
+    modId="ui-lib"
+    type="required"
+    versionRange="*"
+    ordering="NONE"
+    side="BOTH"
