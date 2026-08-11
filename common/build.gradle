@@ -3,6 +3,5 @@ plugins {
 }
 
 dependencies {
-    // UI Lib dependency (Modrinth: https://modrinth.com/mod/ui-lib)
-    implementation "maven.modrinth:${project.ui_lib_modrinth_slug}:${project.ui_lib_version}"
+    // Shared common mod dependencies
 }

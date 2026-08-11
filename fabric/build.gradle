@@ -4,6 +4,5 @@ plugins {
 
 dependencies {
     implementation project(':common')
-    // UI Lib Fabric dependency (Modrinth: https://modrinth.com/mod/ui-lib)
-    implementation "maven.modrinth:${project.ui_lib_modrinth_slug}:${project.ui_lib_version}"
+    compileOnly 'net.fabricmc:fabric-loader:0.15.7'
 }

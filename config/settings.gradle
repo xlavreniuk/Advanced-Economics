@@ -1,23 +1,2 @@
-pluginManagement {
-    repositories {
-        mavenCentral()
-        maven { url = 'https://maven.fabricmc.net/' }
-        maven { url = 'https://maven.neoforged.net/releases' }
-        gradlePluginPortal()
-    }
-}
-
-def configProps = new Properties()
-def propsFile = file('config/gradle.properties')
-if (propsFile.exists()) {
-    propsFile.withInputStream { configProps.load(it) }
-    configProps.each { key, value ->
-        gradle.ext.set(key.toString(), value.toString())
-    }
-}
-
+// Settings script configuration reference
 rootProject.name = 'Advanced-Economics'
-
-include 'common'
-include 'fabric'
-include 'neoforge'
