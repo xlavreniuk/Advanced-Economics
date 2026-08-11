@@ -1,0 +1,50 @@
+plugins {
+    id 'java'
+}
+
+def configProps = new Properties()
+def propsFile = file('config/gradle.properties')
+if (propsFile.exists()) {
+    propsFile.withInputStream { configProps.load(it) }
+}
+
+allprojects {
+    group = configProps.getProperty('mod_group', 'com.example.advancedeconomics')
+    version = configProps.getProperty('mod_version', '0.1')
+
+    configProps.each { key, val ->
+        ext[key.toString()] = val.toString()
+    }
+}
+
+subprojects {
+    apply plugin: 'java'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+
+    repositories {
+        mavenCentral()
+        // Modrinth Maven repository for UI Lib dependency (https://modrinth.com/mod/ui-lib)
+        maven {
+            name = "Modrinth"
+            url = "https://api.modrinth.com/maven"
+            content {
+                includeGroup "maven.modrinth"
+            }
+        }
+        maven { url = 'https://maven.fabricmc.net/' }
+        maven { url = 'https://maven.neoforged.net/releases' }
+    }
+}
+
+task copyArtifactsToBuildFolder(type: Copy) {
+    description = "Collects built mod jars from subprojects into the root build folder."
+    dependsOn subprojects.collect { it.tasks.matching { t -> t.name == 'jar' || t.name == 'remapJar' } }
+    
+    from(subprojects.collect { "${it.buildDir}/libs" })
+    into "${rootDir}/build/libs"
+}
