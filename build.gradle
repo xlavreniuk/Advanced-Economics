@@ -36,7 +36,7 @@ subprojects {
 }
 
 task copyArtifactsToBuildFolder {
-    description = "Collects built mod jars into separate subfolders inside build/ and auto-deploys to Prism Launcher"
+    description = "Collects built mod jars into separate subfolders inside build/ and deploys only our mod jar to Prism Launcher"
     dependsOn subprojects.collect { it.tasks.matching { t -> t.name == 'jar' || t.name == 'remapJar' } }
 
     doLast {
@@ -53,20 +53,20 @@ task copyArtifactsToBuildFolder {
             into "${rootDir}/build/neoforge"
         }
 
-        // Auto-deploy Fabric mod to Prism Launcher instance mods directory if present
+        // Deploy strictly ONLY our mod jar without touching fabric-api or any other user mod
         def prismModsDir = file("${System.getProperty('user.home')}/Library/Application Support/PrismLauncher/instances/26.2 - Fabric/minecraft/mods")
         if (prismModsDir.exists()) {
-            // Remove old version jars (e.g. fabric-0.2.jar)
-            prismModsDir.listFiles().each { file ->
-                if (file.name.startsWith("fabric-") && file.name.endsWith(".jar")) {
-                    file.delete()
+            prismModsDir.listFiles().each { f ->
+                // Protect fabric-api and only remove previous versions of our own mod jar
+                if ((f.name.matches("^fabric-0\\.\\d+\\.jar\$") || f.name.startsWith("advanced_economics")) && !f.name.contains("fabric-api")) {
+                    f.delete()
                 }
             }
             copy {
                 from project(':fabric').layout.buildDirectory.dir("libs")
                 into prismModsDir
             }
-            println "Auto-deployed newest Fabric mod jar (v0.3) to Prism Launcher: ${prismModsDir.path}"
+            println "Safely deployed project mod jar to Prism Launcher without touching user mods."
         }
     }
 }
