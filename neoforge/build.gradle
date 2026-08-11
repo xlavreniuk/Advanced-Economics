@@ -5,3 +5,9 @@ plugins {
 dependencies {
     implementation project(':common')
 }
+
+jar {
+    from {
+        project(':common').sourceSets.main.output
+    }
+}

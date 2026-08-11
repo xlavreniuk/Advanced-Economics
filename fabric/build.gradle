@@ -6,3 +6,9 @@ dependencies {
     implementation project(':common')
     compileOnly 'net.fabricmc:fabric-loader:0.15.7'
 }
+
+jar {
+    from {
+        project(':common').sourceSets.main.output
+    }
+}
