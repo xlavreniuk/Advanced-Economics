@@ -1,2 +1,0 @@
-// Delegate root build configuration to config/build.gradle
-apply from: 'config/build.gradle'

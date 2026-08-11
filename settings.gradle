@@ -1,2 +1,0 @@
-// Delegate settings configuration to config/settings.gradle
-apply from: 'config/settings.gradle'
