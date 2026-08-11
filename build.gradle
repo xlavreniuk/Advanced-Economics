@@ -57,7 +57,6 @@ task copyArtifactsToBuildFolder {
         def prismModsDir = file("${System.getProperty('user.home')}/Library/Application Support/PrismLauncher/instances/26.2 - Fabric/minecraft/mods")
         if (prismModsDir.exists()) {
             prismModsDir.listFiles().each { f ->
-                // Protect fabric-api and only remove previous versions of our own mod jar
                 if ((f.name.matches("^fabric-0\\.\\d+\\.jar\$") || f.name.startsWith("advanced_economics")) && !f.name.contains("fabric-api")) {
                     f.delete()
                 }
