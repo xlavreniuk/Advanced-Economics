@@ -1,56 +1,74 @@
 package com.example.advancedeconomics.fabric.client;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 
 /**
- * Centered Minecraft GUI Screen for Advanced Economics (v0.5).
- * Fix: do NOT call extractBackground() — it triggers a second blur pass per frame
- * which crashes with "Can only blur once per frame". Draw our own overlay instead.
+ * Advanced Economics UI Screen (v0.6)
+ * Layout:
+ *   [  Shop  ] [  Profession  ]   <- buttons above container
+ *   +---------------------------+
+ *   |                           |  <- empty container
+ *   +---------------------------+
+ *
+ * Press N or ESC to close.
  */
 public class EconomicsBoxScreen extends Screen {
+
+    // Layout constants
+    private static final int BOX_WIDTH    = 260;
+    private static final int BOX_HEIGHT   = 160;
+    private static final int BTN_WIDTH    = 110;
+    private static final int BTN_HEIGHT   = 20;
+    private static final int BTN_GAP      = 10;  // gap between buttons
+    private static final int BTN_MARGIN   = 6;   // gap between buttons and box top
+
+    // Track which tab is active for future use
+    private boolean shopActive = true;
 
     public EconomicsBoxScreen() {
         super(Component.literal("Advanced Economics"));
     }
 
     @Override
+    protected void init() {
+        super.init();
+
+        int boxX = (this.width - BOX_WIDTH) / 2;
+        int boxY = (this.height - BOX_HEIGHT) / 2;
+
+        // Buttons sit just above the box
+        int totalBtnWidth = BTN_WIDTH * 2 + BTN_GAP;
+        int btnStartX = (this.width - totalBtnWidth) / 2;
+        int btnY = boxY - BTN_HEIGHT - BTN_MARGIN;
+
+        // Shop button
+        addRenderableWidget(Button.builder(Component.literal("Shop"), btn -> {
+            shopActive = true;
+        }).bounds(btnStartX, btnY, BTN_WIDTH, BTN_HEIGHT).build());
+
+        // Profession button
+        addRenderableWidget(Button.builder(Component.literal("Profession"), btn -> {
+            shopActive = false;
+        }).bounds(btnStartX + BTN_WIDTH + BTN_GAP, btnY, BTN_WIDTH, BTN_HEIGHT).build());
+    }
+
+    @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        // Draw our own translucent dark overlay — do NOT call extractBackground() or
-        // extractBlurredBackground() as those trigger a second blur and crash MC 26.2.
+        // Translucent full-screen dim (no extractBackground — causes double-blur crash in 26.2)
         graphics.fill(0, 0, this.width, this.height, 0xA0000000);
 
-        int boxWidth = 260;
-        int boxHeight = 150;
-        int x = (this.width - boxWidth) / 2;
-        int y = (this.height - boxHeight) / 2;
+        int boxX = (this.width - BOX_WIDTH) / 2;
+        int boxY = (this.height - BOX_HEIGHT) / 2;
 
-        // Border + dark box
-        graphics.fill(x - 2, y - 2, x + boxWidth + 2, y + boxHeight + 2, 0xFFCCCCCC);
-        graphics.fill(x, y, x + boxWidth, y + boxHeight, 0xF0101010);
+        // Container border + empty dark fill
+        graphics.fill(boxX - 2, boxY - 2, boxX + BOX_WIDTH + 2, boxY + BOX_HEIGHT + 2, 0xFF888888);
+        graphics.fill(boxX, boxY, boxX + BOX_WIDTH, boxY + BOX_HEIGHT, 0xF0101010);
 
-        // Green accent line under title
-        graphics.fill(x + 10, y + 34, x + boxWidth - 10, y + 35, 0xFF55FF55);
-
-        // Title
-        graphics.centeredText(this.getFont(), "Advanced Economics v0.5",
-                this.width / 2, y + 16, 0x55FF55);
-
-        // Info lines
-        graphics.centeredText(this.getFont(), "UI Lib Integration: Active",
-                this.width / 2, y + 48, 0xFFFFFF);
-        graphics.centeredText(this.getFont(), "Market Status: Online",
-                this.width / 2, y + 66, 0xFFFF55);
-        graphics.centeredText(this.getFont(), "[Live Reload Mode Active]",
-                this.width / 2, y + 84, 0xAAAAAA);
-
-        // Bottom separator + close hint
-        graphics.fill(x + 10, y + boxHeight - 32, x + boxWidth - 10, y + boxHeight - 31, 0xFF333333);
-        graphics.centeredText(this.getFont(), "Press  N  or  ESC  to close",
-                this.width / 2, y + boxHeight - 22, 0x888888);
-
+        // Render buttons and other widgets on top
         super.extractRenderState(graphics, mouseX, mouseY, delta);
     }
 
