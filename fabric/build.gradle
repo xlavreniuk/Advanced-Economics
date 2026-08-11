@@ -5,6 +5,7 @@ plugins {
 dependencies {
     implementation project(':common')
     compileOnly 'net.fabricmc:fabric-loader:0.15.7'
+    compileOnly 'org.lwjgl:lwjgl-glfw:3.3.3'
 }
 
 jar {
