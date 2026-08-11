@@ -12,20 +12,13 @@ description="A multi-loader economics mod built with UI Lib."
 [[dependencies.advanced_economics]]
     modId="neoforge"
     type="required"
-    versionRange="[20.4.0,)"
+    versionRange="*"
     ordering="NONE"
     side="BOTH"
 
 [[dependencies.advanced_economics]]
     modId="minecraft"
     type="required"
-    versionRange="[1.20.4,)"
-    ordering="NONE"
-    side="BOTH"
-
-[[dependencies.advanced_economics]]
-    modId="ui-lib"
-    type="required"
-    versionRange="[1.0.0,)"
+    versionRange="*"
     ordering="NONE"
     side="BOTH"

@@ -24,8 +24,12 @@
   "mixins": [],
   "depends": {
     "fabricloader": ">=0.15.0",
-    "minecraft": "~1.20.4",
-    "java": ">=17",
-    "ui-lib": ">=1.0.0"
+    "minecraft": "*",
+    "java": ">=17"
+  },
+  "recommends": {
+    "uilib": "*",
+    "ui-lib": "*",
+    "owo": "*"
   }
 }

@@ -10,7 +10,7 @@ if (propsFile.exists()) {
 
 allprojects {
     group = configProps.getProperty('mod_group', 'com.example.advancedeconomics')
-    version = configProps.getProperty('mod_version', '0.1')
+    version = configProps.getProperty('mod_version', '0.2')
 
     configProps.each { key, val ->
         ext[key.toString()] = val.toString()
@@ -35,10 +35,22 @@ subprojects {
     }
 }
 
-task copyArtifactsToBuildFolder(type: Copy) {
-    description = "Collects built mod jars from subprojects into the root build folder."
+task copyArtifactsToBuildFolder {
+    description = "Collects built mod jars into separate source, fabric, and neoforge subfolders inside build/"
     dependsOn subprojects.collect { it.tasks.matching { t -> t.name == 'jar' || t.name == 'remapJar' } }
-    
-    from(subprojects.collect { "${it.buildDir}/libs" })
-    into "${rootDir}/build/libs"
+
+    doLast {
+        copy {
+            from project(':common').layout.buildDirectory.dir("libs")
+            into "${rootDir}/build/source"
+        }
+        copy {
+            from project(':fabric').layout.buildDirectory.dir("libs")
+            into "${rootDir}/build/fabric"
+        }
+        copy {
+            from project(':neoforge').layout.buildDirectory.dir("libs")
+            into "${rootDir}/build/neoforge"
+        }
+    }
 }
