@@ -54,9 +54,9 @@ task copyArtifactsToBuildFolder {
         // Deploy strictly ONLY our mod jar to Prism Launcher (never touch fabric-api, uilib, etc.)
         def prismModsDir = file("${System.getProperty('user.home')}/Library/Application Support/PrismLauncher/instances/26.2 - Fabric/minecraft/mods")
         if (prismModsDir.exists()) {
-            // Remove only our old mod jars
+            // Remove only our old mod jars — matches fabric-X.Y.jar (any version), never fabric-api
             prismModsDir.listFiles().each { f ->
-                if (f.name.matches("^fabric-0\\.\\d+\\.jar\$") || f.name.startsWith("advanced_economics")) {
+                if (f.name.matches("^fabric-\\d+\\.\\d+\\.jar\$") || f.name.startsWith("advanced_economics")) {
                     f.delete()
                 }
             }
