@@ -10,7 +10,7 @@ if (propsFile.exists()) {
 
 allprojects {
     group = configProps.getProperty('mod_group', 'com.example.advancedeconomics')
-    version = configProps.getProperty('mod_version', '0.2')
+    version = configProps.getProperty('mod_version', '0.3')
 
     configProps.each { key, val ->
         ext[key.toString()] = val.toString()
@@ -56,11 +56,17 @@ task copyArtifactsToBuildFolder {
         // Auto-deploy Fabric mod to Prism Launcher instance mods directory if present
         def prismModsDir = file("${System.getProperty('user.home')}/Library/Application Support/PrismLauncher/instances/26.2 - Fabric/minecraft/mods")
         if (prismModsDir.exists()) {
+            // Remove old version jars (e.g. fabric-0.2.jar)
+            prismModsDir.listFiles().each { file ->
+                if (file.name.startsWith("fabric-") && file.name.endsWith(".jar")) {
+                    file.delete()
+                }
+            }
             copy {
                 from project(':fabric').layout.buildDirectory.dir("libs")
                 into prismModsDir
             }
-            println "Auto-deployed newest Fabric mod jar to Prism Launcher: ${prismModsDir.path}"
+            println "Auto-deployed newest Fabric mod jar (v0.3) to Prism Launcher: ${prismModsDir.path}"
         }
     }
 }

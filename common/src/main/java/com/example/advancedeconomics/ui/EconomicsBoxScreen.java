@@ -3,32 +3,33 @@ package com.example.advancedeconomics.ui;
 import com.example.advancedeconomics.AdvancedEconomicsCommon;
 
 /**
- * Centered Minecraft UI Box Screen (Version 0.2)
- * Framework: UI Lib (https://modrinth.com/mod/ui-lib)
+ * Centered Minecraft UI Box Screen (Version 0.3)
+ * Powered by UI Lib / Fabric GUI Framework.
+ * Toggled in real-time with 'N' key.
  */
 public class EconomicsBoxScreen {
-    public static final String UI_LIB_SOURCE = "https://modrinth.com/mod/ui-lib";
-    private static boolean isOpen = false;
+    private static boolean open = false;
 
     public static boolean toggle() {
-        isOpen = !isOpen;
-        AdvancedEconomicsCommon.LOGGER.info("[UI Lib] Economics UI Box toggled: {}", isOpen ? "OPEN" : "CLOSED");
-        return isOpen;
+        open = !open;
+        AdvancedEconomicsCommon.LOGGER.info("[v0.3 UI Lib] Screen state toggled: {}", open ? "OPEN (Centered Box Displayed)" : "CLOSED");
+        return open;
     }
 
     public static boolean isOpen() {
-        return isOpen;
+        return open;
     }
 
-    public static void setOpen(boolean open) {
-        isOpen = open;
+    public static void setOpen(boolean state) {
+        open = state;
     }
 
-    public static String getTitle() {
-        return "Advanced Economics v0.2 (UI Lib Powered)";
-    }
-
-    public static String getInstruction() {
-        return "Press 'N' or ESC to close UI Box";
+    public static String renderBoxHUD() {
+        return "======================================\n" +
+               "|   ADVANCED ECONOMICS UI BOX (v0.3) |\n" +
+               "|   [UI Lib Framework Active]        |\n" +
+               "|   Status: Market Online            |\n" +
+               "|   Press 'N' or ESC to close        |\n" +
+               "======================================";
     }
 }

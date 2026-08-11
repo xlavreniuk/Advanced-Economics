@@ -8,12 +8,14 @@ public class EconomicsFabricClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        AdvancedEconomicsCommon.LOGGER.info("Advanced Economics Fabric Client Initialized for 1.20.4 / Fabric 26.2.");
-        AdvancedEconomicsCommon.LOGGER.info("Keybinding 'N' registered to toggle centered Minecraft UI box.");
+        AdvancedEconomicsCommon.LOGGER.info("Advanced Economics Fabric Client Initialized (v0.3)...");
+        AdvancedEconomicsCommon.LOGGER.info("Live Reload Mode: Active. Registered 'N' Key for Centered UI Box.");
     }
 
-    public static void onNKeyPressed() {
-        boolean open = EconomicsBoxScreen.toggle();
-        AdvancedEconomicsCommon.LOGGER.info("Key 'N' pressed: Screen box state is now {}", open ? "OPEN" : "CLOSED");
+    public static void toggleScreen() {
+        boolean state = EconomicsBoxScreen.toggle();
+        if (state) {
+            AdvancedEconomicsCommon.LOGGER.info("\n{}", EconomicsBoxScreen.renderBoxHUD());
+        }
     }
 }

@@ -4,7 +4,7 @@ license="MIT"
 
 [[mods]]
 modId="advanced_economics"
-version="0.2"
+version="0.3"
 displayName="Advanced Economics"
 authors="Mod Creator"
 description="A multi-loader economics mod built with UI Lib."
