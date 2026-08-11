@@ -1,15 +1,27 @@
 plugins {
-    id 'java'
+    id 'net.fabricmc.fabric-loom'
+}
+
+loom {
+    // MC 26.2 is unobfuscated - no intermediate mappings needed
+    noIntermediateMappings()
 }
 
 dependencies {
+    // MC 26.2 is unobfuscated - use 'implementation' instead of 'modImplementation'
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.fabric_loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:0.157.0+26.2"
+
+    // Common module
     implementation project(':common')
-    compileOnly 'net.fabricmc:fabric-loader:0.15.7'
-    compileOnly 'org.lwjgl:lwjgl-glfw:3.3.3'
 }
 
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+}
+
+// Include common classes in the output jar
 jar {
-    from {
-        project(':common').sourceSets.main.output
-    }
+    from(project(':common').sourceSets.main.output)
 }

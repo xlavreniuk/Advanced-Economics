@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'net.fabricmc.fabric-loom' version '1.17-SNAPSHOT' apply false
 }
 
 def configProps = new Properties()
@@ -18,54 +19,57 @@ allprojects {
 }
 
 subprojects {
-    apply plugin: 'java'
-
-    tasks.withType(JavaCompile).configureEach {
-        options.release = 17
-    }
-
     repositories {
         mavenCentral()
         maven { url = 'https://maven.fabricmc.net/' }
-        maven { url = 'https://maven.neoforged.net/releases' }
-    }
-
-    dependencies {
-        implementation 'org.slf4j:slf4j-api:2.0.9'
+        maven { url = 'https://api.modrinth.com/maven' }
     }
 }
 
 task copyArtifactsToBuildFolder {
-    description = "Collects built mod jars into separate subfolders inside build/ and deploys only our mod jar to Prism Launcher"
-    dependsOn subprojects.collect { it.tasks.matching { t -> t.name == 'jar' || t.name == 'remapJar' } }
+    description = "Collects built mod jars and deploys to Prism Launcher"
+    dependsOn subprojects.collect { it.tasks.matching { t -> t.name == 'remapJar' || t.name == 'jar' } }
 
     doLast {
         copy {
             from project(':common').layout.buildDirectory.dir("libs")
             into "${rootDir}/build/source"
         }
-        copy {
-            from project(':fabric').layout.buildDirectory.dir("libs")
-            into "${rootDir}/build/fabric"
+        // Loom produces a remapped jar - use the main jar from fabric/build/libs
+        def fabricLibsDir = project(':fabric').layout.buildDirectory.dir("libs").get().asFile
+        if (fabricLibsDir.exists()) {
+            copy {
+                from fabricLibsDir
+                into "${rootDir}/build/fabric"
+                include "*.jar"
+                exclude "*-dev.jar"
+                exclude "*-sources.jar"
+            }
         }
         copy {
             from project(':neoforge').layout.buildDirectory.dir("libs")
             into "${rootDir}/build/neoforge"
         }
 
-        // Deploy strictly ONLY our mod jar without touching fabric-api or any other user mod
+        // Deploy strictly ONLY our mod jar to Prism Launcher (never touch fabric-api, uilib, etc.)
         def prismModsDir = file("${System.getProperty('user.home')}/Library/Application Support/PrismLauncher/instances/26.2 - Fabric/minecraft/mods")
         if (prismModsDir.exists()) {
+            // Remove only our old mod jars
             prismModsDir.listFiles().each { f ->
-                if ((f.name.matches("^fabric-0\\.\\d+\\.jar\$") || f.name.startsWith("advanced_economics")) && !f.name.contains("fabric-api")) {
+                if (f.name.matches("^fabric-0\\.\\d+\\.jar\$") || f.name.startsWith("advanced_economics")) {
                     f.delete()
                 }
             }
-            copy {
-                from project(':fabric').layout.buildDirectory.dir("libs")
-                into prismModsDir
+            if (fabricLibsDir.exists()) {
+                copy {
+                    from fabricLibsDir
+                    into prismModsDir
+                    include "*.jar"
+                    exclude "*-dev.jar"
+                    exclude "*-sources.jar"
+                }
             }
-            println "Safely deployed project mod jar to Prism Launcher without touching user mods."
+            println "Deployed mod jar to Prism Launcher mods folder."
         }
     }
 }

@@ -12,7 +12,7 @@
   },
   "license": "MIT",
   "icon": "assets/advanced_economics/icon.png",
-  "environment": "*",
+  "environment": "client",
   "entrypoints": {
     "main": [
       "com.example.advancedeconomics.fabric.AdvancedEconomicsFabric"
@@ -24,12 +24,12 @@
   "mixins": [],
   "depends": {
     "fabricloader": ">=0.15.0",
+    "fabric-api": "*",
     "minecraft": "*",
-    "java": ">=17"
+    "java": ">=21"
   },
   "recommends": {
     "uilib": "*",
-    "ui-lib": "*",
-    "owo": "*"
+    "ui-lib": "*"
   }
 }
