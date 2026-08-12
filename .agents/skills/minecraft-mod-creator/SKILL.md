@@ -2,7 +2,8 @@
 name: minecraft-mod-creator
 description: >-
   Expert skill for creating, building, and maintaining Minecraft mods with a multi-loader architecture
-  (common, fabric, neoforge), UI Lib UI framework integration, and automated build versioning rules.
+  (common, fabric, neoforge), UI Lib UI framework integration, decimal economy pricing, career professions,
+  and automated build versioning rules.
 ---
 
 # Minecraft Mod Creator Skill
@@ -11,8 +12,8 @@ This skill provides operational procedures for building and managing this Minecr
 
 ## 1. Subproject Architecture
 
-- **`common/`**: Contains loader-agnostic Java code, UI Lib screens, items, blocks, and data models.
-- **`fabric/`**: Contains Fabric `ModInitializer`, Fabric mixins, and `fabric.mod.json`.
+- **`common/`**: Contains loader-agnostic Java code, UI Lib screens, items, blocks, shop catalog, profession career logic, and data models.
+- **`fabric/`**: Contains Fabric `ModInitializer` (`AdvancedEconomicsFabric`), Fabric client handlers (`EconomicsFabricClient`), network payloads, `/ae` command suite, and `fabric.mod.json`.
 - **`neoforge/`**: Contains NeoForge `@Mod` entrypoint, NeoForge event handlers, and `neoforge.mods.toml`.
 - **`build/`**: Target directory where compiled jar artifacts reside after build runs.
 
@@ -23,35 +24,44 @@ This skill provides operational procedures for building and managing this Minecr
 ### Dev Version Sequence
 - Dev versions follow `0.1` -> `0.2` -> `0.3` ... up to `1.0`.
 - To increment dev version:
-  1. Open `gradle.properties`.
-  2. Increment `mod_version` (e.g. `0.1` to `0.2`).
+  1. Open `config/gradle.properties` and `fabric/src/main/resources/fabric.mod.json`.
+  2. Increment `mod_version` (e.g. `0.38` to `0.39`).
   3. Ensure `mod_version_type=dev`.
 
 ### Release Version Sequence ("realeasy" / "release")
 - When user states "realeasy", "release", "make a release", or similar:
-  1. Open `gradle.properties`.
+  1. Open `config/gradle.properties`.
   2. Transition `mod_version` to release format: `1.1`, `1.2`, `2.0` release.
   3. Update `mod_version_type=release`.
 
 ---
 
-## 3. UI Lib Integration
+## 3. UI Lib & Screen Conventions
 
-- **Mod Page**: [UI Lib on Modrinth](https://modrinth.com/mod/ui-lib)
-- **Maven Repo**: `https://api.modrinth.com/maven`
-- **Gradle Dependency**: `maven.modrinth:${project.ui_lib_modrinth_slug}:${project.ui_lib_version}`
-- **Common UI Class**: `com.example.advancedeconomics.ui.EconomicsUI`
-
-When creating new user interfaces:
-1. Define UI layout and components inside `common/src/main/java/com/example/advancedeconomics/ui/`.
-2. Inherit/use UI Lib visual components and HUD helpers.
-3. Call UI opening handlers from client networking packets or keybindings in Fabric & NeoForge.
+- **Hover Cursor Rule**: Always maintain `active = true` on buttons during mouse input passes so hover cursor stays normal (never shows unavailable/cross cursor).
+- **Disabled Rendering**: Visually disabled buttons temporarily toggle `active = false` only during `extractRenderState` rendering pass to render Minecraft's locked button sprite texture.
+- **Scrollbar Pattern**: Sleek 6px draggable track with 12x10px `▲` and `▼` scroll buttons.
 
 ---
 
-## 4. Build & Verification Commands
+## 4. Unified `/ae` Command Pattern
 
-To compile all modules and copy final jars into `build/libs/`:
+All in-game commands follow the unified pattern: `/ae <action> <quantity/item> [player]` (targeting self when `[player]` is omitted):
+- `/ae send <amount> <player>`
+- `/ae give <amount> [player]`
+- `/ae take <amount> [player]`
+- `/ae setmoney <amount> [player]`
+- `/ae setlevel <level> [player]`
+- `/ae addxp <amount> [player]`
+- `/ae buy <item> [quantity]`
+- `/ae sell [item] [quantity]`
+- `/ae unlock <item>`
+
+---
+
+## 5. Build & Verification Commands
+
+To compile all modules and copy final jars into `build/libs/` and Prism Launcher:
 ```bash
 ./gradlew build copyArtifactsToBuildFolder
 ```
