@@ -7,24 +7,18 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 
 /**
- * Advanced Economics UI Screen (v0.8)
- *
- * Button row is flush with the visual box border (border is 2px outside boxX).
- *
- *  [Shop] [Profession]                 [✕]   <- all flush with visual border edges
- *  ┌────────────────────────────────────┐
- *  │          (empty container)         │
- *  └────────────────────────────────────┘
+ * Advanced Economics UI Screen (v0.9)
+ * Displays official server-authoritative balance synced from server.
  */
 public class EconomicsBoxScreen extends Screen {
 
     private static final int BOX_WIDTH   = 260;
     private static final int BOX_HEIGHT  = 160;
-    private static final int BORDER      = 2;   // border drawn outside boxX
+    private static final int BORDER      = 2;
     private static final int BTN_WIDTH   = 80;
     private static final int BTN_HEIGHT  = 20;
     private static final int BTN_GAP     = 4;
-    private static final int BTN_MARGIN  = 4;   // gap between button row bottom and box top
+    private static final int BTN_MARGIN  = 4;
     private static final int CLOSE_WIDTH = 20;
 
     public EconomicsBoxScreen() {
@@ -39,23 +33,18 @@ public class EconomicsBoxScreen extends Screen {
         int boxY  = (this.height - BOX_HEIGHT) / 2;
         int btnY  = boxY - BTN_HEIGHT - BTN_MARGIN;
 
-        // Visual border left edge = boxX - BORDER
-        // Visual border right edge = boxX + BOX_WIDTH + BORDER
         int visualLeft  = boxX - BORDER;
         int visualRight = boxX + BOX_WIDTH + BORDER;
-        int visualWidth = visualRight - visualLeft;  // = BOX_WIDTH + 2*BORDER
 
-        // [Shop] — flush with visual left border
+        // [Shop]
         addRenderableWidget(Button.builder(Component.literal("Shop"), btn -> {
-            // future: switch to shop tab
         }).bounds(visualLeft, btnY, BTN_WIDTH, BTN_HEIGHT).build());
 
-        // [Profession] — right after Shop + gap
+        // [Profession]
         addRenderableWidget(Button.builder(Component.literal("Profession"), btn -> {
-            // future: switch to profession tab
         }).bounds(visualLeft + BTN_WIDTH + BTN_GAP, btnY, BTN_WIDTH, BTN_HEIGHT).build());
 
-        // [✕] — flush with visual right border
+        // [✕] Close button
         addRenderableWidget(Button.builder(Component.literal("✕"), btn -> this.onClose())
                 .bounds(visualRight - CLOSE_WIDTH, btnY, CLOSE_WIDTH, BTN_HEIGHT)
                 .build());
@@ -63,16 +52,21 @@ public class EconomicsBoxScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        // Dark translucent full-screen dim (no extractBackground — causes double-blur crash)
+        // Dark translucent background
         graphics.fill(0, 0, this.width, this.height, 0xA0000000);
 
         int boxX = (this.width  - BOX_WIDTH)  / 2;
         int boxY = (this.height - BOX_HEIGHT) / 2;
 
-        // Border + empty dark container
+        // Border + container box
         graphics.fill(boxX - BORDER, boxY - BORDER,
                       boxX + BOX_WIDTH + BORDER, boxY + BOX_HEIGHT + BORDER, 0xFF888888);
         graphics.fill(boxX, boxY, boxX + BOX_WIDTH, boxY + BOX_HEIGHT, 0xF0101010);
+
+        // Display server-authoritative balance inside container
+        long balance = ClientEconomyState.getBalance();
+        graphics.centeredText(this.getFont(), "Server Balance: $" + balance,
+                this.width / 2, boxY + 20, 0xFF55FF55);
 
         // Widgets (buttons) on top
         super.extractRenderState(graphics, mouseX, mouseY, delta);
