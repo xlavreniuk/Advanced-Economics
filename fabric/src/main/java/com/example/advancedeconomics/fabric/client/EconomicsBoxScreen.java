@@ -22,12 +22,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Advanced Economics Box Screen (v0.24).
+ * Advanced Economics Box Screen (v0.26).
  *
- * Profession Tab Refinements:
- * - Scrollable Profession list (3 visible rows at a time) with sleek 6px draggable web scrollbar.
- * - 3D Item icons for each profession (Oak Log, Iron Pickaxe, Wheat, Leather, Iron Sword).
- * - Very short descriptions & 2%/level sell bonus ratio.
+ * Enhancements:
+ * - Active tab button highlighted with a golden outline.
+ * - Small ▲ (Up) and ▼ (Down) scroll buttons added to both Shop and Profession scrollable views.
+ * - Cleaned up profession descriptions (removed (+2%/lvl) text).
  */
 public class EconomicsBoxScreen extends Screen {
 
@@ -164,6 +164,21 @@ public class EconomicsBoxScreen extends Screen {
         int maxOffset = Math.max(0, sortedItems.size() - 4);
         scrollOffset = Math.clamp(scrollOffset, 0, maxOffset);
 
+        // Small Top (▲) and Bottom (▼) Scroll Buttons for Shop
+        addRenderableWidget(Button.builder(Component.literal("▲"), btn -> {
+            if (scrollOffset > 0) {
+                scrollOffset--;
+                rebuildWidgets();
+            }
+        }).bounds(boxX + BOX_WIDTH - 24, boxY + 24, 18, 14).build());
+
+        addRenderableWidget(Button.builder(Component.literal("▼"), btn -> {
+            if (scrollOffset < maxOffset) {
+                scrollOffset++;
+                rebuildWidgets();
+            }
+        }).bounds(boxX + BOX_WIDTH - 24, boxY + 154, 18, 14).build());
+
         int startY = boxY + 24;
         int rowHeight = 36;
 
@@ -188,17 +203,17 @@ public class EconomicsBoxScreen extends Screen {
             if (isUnlocked) {
                 Button sellBtn = Button.builder(Component.literal("Sell $" + sellPrice), btn -> {
                     ClientPlayNetworking.send(new RequestSellPayload(shopItem.id()));
-                }).bounds(boxX + 144, rowY + 8, 58, 18).build();
+                }).bounds(boxX + 138, rowY + 8, 56, 18).build();
                 sellBtn.active = hasItemInInventory;
                 addRenderableWidget(sellBtn);
 
                 addRenderableWidget(Button.builder(Component.literal("Buy $" + buyPrice), btn -> {
                     ClientPlayNetworking.send(new RequestBuyPayload(shopItem.id()));
-                }).bounds(boxX + 206, rowY + 8, 62, 18).build());
+                }).bounds(boxX + 198, rowY + 8, 58, 18).build());
             } else {
                 addRenderableWidget(Button.builder(Component.literal("Unlock $" + unlockPrice), btn -> {
                     ClientPlayNetworking.send(new RequestUnlockPayload(shopItem.id()));
-                }).bounds(boxX + 196, rowY + 8, 72, 18).build());
+                }).bounds(boxX + 188, rowY + 8, 68, 18).build());
             }
         }
     }
@@ -210,6 +225,21 @@ public class EconomicsBoxScreen extends Screen {
 
         int maxOffset = Math.max(0, selectable.length - 3);
         professionScrollOffset = Math.clamp(professionScrollOffset, 0, maxOffset);
+
+        // Small Top (▲) and Bottom (▼) Scroll Buttons for Profession tab
+        addRenderableWidget(Button.builder(Component.literal("▲"), btn -> {
+            if (professionScrollOffset > 0) {
+                professionScrollOffset--;
+                rebuildWidgets();
+            }
+        }).bounds(boxX + BOX_WIDTH - 24, boxY + 58, 18, 14).build());
+
+        addRenderableWidget(Button.builder(Component.literal("▼"), btn -> {
+            if (professionScrollOffset < maxOffset) {
+                professionScrollOffset++;
+                rebuildWidgets();
+            }
+        }).bounds(boxX + BOX_WIDTH - 24, boxY + 152, 18, 14).build());
 
         int startY = boxY + 58;
         int rowHeight = 35;
@@ -227,7 +257,7 @@ public class EconomicsBoxScreen extends Screen {
                     ClientPlayNetworking.send(new RequestSetProfessionPayload(prof.name()));
                     ClientEconomyState.setProfession(prof.getDisplayName());
                     rebuildWidgets();
-                }).bounds(boxX + 215, rowY + 8, 58, 18).build());
+                }).bounds(boxX + 208, rowY + 8, 56, 18).build());
             }
         }
     }
@@ -281,6 +311,18 @@ public class EconomicsBoxScreen extends Screen {
 
         int boxX = (this.width  - BOX_WIDTH)  / 2;
         int boxY = (this.height - BOX_HEIGHT) / 2;
+        int btnY = boxY - BTN_HEIGHT - BTN_MARGIN;
+        int visualLeft = boxX - BORDER;
+
+        // Highlight active tab button with golden outline
+        int tabX = (activeTab == Tab.SHOP) ? visualLeft :
+                   (activeTab == Tab.PROFESSION) ? visualLeft + BTN_WIDTH + BTN_GAP :
+                   visualLeft + (BTN_WIDTH + BTN_GAP) * 2;
+
+        graphics.fill(tabX - 1, btnY - 1, tabX + BTN_WIDTH + 1, btnY, 0xFFFFDD55);
+        graphics.fill(tabX - 1, btnY + BTN_HEIGHT, tabX + BTN_WIDTH + 1, btnY + BTN_HEIGHT + 1, 0xFFFFDD55);
+        graphics.fill(tabX - 1, btnY, tabX, btnY + BTN_HEIGHT, 0xFFFFDD55);
+        graphics.fill(tabX + BTN_WIDTH, btnY, tabX + BTN_WIDTH + 1, btnY + BTN_HEIGHT, 0xFFFFDD55);
 
         // Pass 2: Outer container frame & dark box
         graphics.fill(boxX - BORDER, boxY - BORDER,
@@ -290,7 +332,7 @@ public class EconomicsBoxScreen extends Screen {
         // Pass 3: Tab-specific backgrounds, text & item icons
         if (activeTab == Tab.SHOP) {
             renderMoneyBalanceBox(graphics, boxX + BOX_WIDTH - 114, boxY + 5, 108, 16);
-            graphics.fill(boxX + 5, boxY + 24, boxX + BOX_WIDTH - 12, boxY + 168, 0xFF0A0A0A);
+            graphics.fill(boxX + 5, boxY + 24, boxX + BOX_WIDTH - 26, boxY + 168, 0xFF0A0A0A);
             renderShopRows(graphics, boxX, boxY);
             renderDraggableScrollbar(graphics, boxX, boxY);
         } else if (activeTab == Tab.SETTINGS) {
@@ -330,8 +372,8 @@ public class EconomicsBoxScreen extends Screen {
             boolean isUnlocked = ClientEconomyState.isUnlocked(shopItem.id());
 
             int bgTint = isUnlocked ? 0xFF181818 : 0xFF101010;
-            graphics.fill(boxX + 6, rowY + 1, boxX + BOX_WIDTH - 14, rowY + rowHeight - 1, bgTint);
-            graphics.fill(boxX + 6, rowY + rowHeight - 1, boxX + BOX_WIDTH - 14, rowY + rowHeight, 0xFF282828);
+            graphics.fill(boxX + 6, rowY + 1, boxX + BOX_WIDTH - 28, rowY + rowHeight - 1, bgTint);
+            graphics.fill(boxX + 6, rowY + rowHeight - 1, boxX + BOX_WIDTH - 28, rowY + rowHeight, 0xFF282828);
 
             Item mcItem = BuiltInRegistries.ITEM.getValue(Identifier.fromNamespaceAndPath("minecraft", shopItem.id()));
             if (mcItem != null && mcItem != Items.AIR) {
@@ -352,14 +394,14 @@ public class EconomicsBoxScreen extends Screen {
         int maxOffset = Math.max(0, totalItems - 4);
         if (maxOffset <= 0) return;
 
-        int trackX = boxX + BOX_WIDTH - 11;
-        int trackY = boxY + 24;
+        int trackX = boxX + BOX_WIDTH - 18;
+        int trackY = boxY + 40;
         int trackW = 6;
-        int trackH = 144;
+        int trackH = 112;
 
         graphics.fill(trackX, trackY, trackX + trackW, trackY + trackH, 0xFF151515);
 
-        int thumbH = Math.max(18, (trackH * 4) / Math.max(1, totalItems));
+        int thumbH = Math.max(16, (trackH * 4) / Math.max(1, totalItems));
         int thumbY = trackY + ((trackH - thumbH) * scrollOffset) / maxOffset;
         int thumbColor = isDraggingScrollbar ? 0xFFAAAAAA : 0xFF666666;
 
@@ -394,15 +436,13 @@ public class EconomicsBoxScreen extends Screen {
         long xp = ClientEconomyState.getXp();
         long maxXp = ClientEconomyState.getMaxXp();
 
-        // 1. Top Header: Active Profession & Level
         String headerStr = "Active: §e" + profession + " §7(Level " + level + ")";
         graphics.text(this.getFont(), Component.literal(headerStr), boxX + 12, boxY + 22, 0xFFFFFFFF, true);
 
-        // 2% per level sell bonus
         int bonusPct = level * 2;
         graphics.text(this.getFont(), Component.literal("§a+" + bonusPct + "% Sell Bonus"), boxX + 198, boxY + 22, 0xFF55FF55, true);
 
-        // 2. Minecraft XP Bar Style Progress Bar
+        // XP Progress Bar
         int barX = boxX + 12;
         int barY = boxY + 35;
         int barW = 271;
@@ -421,13 +461,11 @@ public class EconomicsBoxScreen extends Screen {
         String xpStr = "XP: " + xp + " / " + maxXp;
         graphics.centeredText(this.getFont(), Component.literal(xpStr), this.width / 2, barY + 3, 0xFFFFFFFF);
 
-        // 3. Scrollable Selectable Profession List
         Profession[] selectable = new Profession[]{
                 Profession.LUMBERJACK, Profession.MINER, Profession.FARMER, Profession.HUNTER, Profession.WEAPONSMITH
         };
 
-        // Draw inner viewport background
-        graphics.fill(boxX + 10, boxY + 56, boxX + BOX_WIDTH - 12, boxY + 165, 0xFF0A0A0A);
+        graphics.fill(boxX + 10, boxY + 56, boxX + BOX_WIDTH - 26, boxY + 168, 0xFF0A0A0A);
 
         int maxOffset = Math.max(0, selectable.length - 3);
         professionScrollOffset = Math.clamp(professionScrollOffset, 0, maxOffset);
@@ -443,28 +481,23 @@ public class EconomicsBoxScreen extends Screen {
             boolean isCurrent = profession.equalsIgnoreCase(prof.getDisplayName()) || profession.equalsIgnoreCase(prof.name());
 
             int bgTint = isCurrent ? 0xFF1E2E1E : 0xFF141414;
-            graphics.fill(boxX + 12, rowY + 1, boxX + BOX_WIDTH - 18, rowY + rowHeight - 2, bgTint);
-            graphics.fill(boxX + 12, rowY + rowHeight - 2, boxX + BOX_WIDTH - 18, rowY + rowHeight - 1, 0xFF2A2A2A);
+            graphics.fill(boxX + 12, rowY + 1, boxX + BOX_WIDTH - 28, rowY + rowHeight - 2, bgTint);
+            graphics.fill(boxX + 12, rowY + rowHeight - 2, boxX + BOX_WIDTH - 28, rowY + rowHeight - 1, 0xFF2A2A2A);
 
-            // Render 3D Item Icon per Profession
             Item profItem = getProfessionItemIcon(prof);
             if (profItem != null && profItem != Items.AIR) {
                 graphics.item(new ItemStack(profItem), boxX + 16, rowY + 9);
             }
 
-            // Profession Name
             int nameColor = isCurrent ? 0xFF55FF55 : 0xFFFFFFFF;
             graphics.text(this.getFont(), Component.literal(prof.getDisplayName()), boxX + 36, rowY + 5, nameColor, true);
-
-            // Short Description
             graphics.text(this.getFont(), Component.literal("§7" + prof.getDescription()), boxX + 36, rowY + 17, 0xFFAAAAAA, true);
 
             if (isCurrent) {
-                graphics.text(this.getFont(), Component.literal("§a✔ Active"), boxX + 222, rowY + 10, 0xFF55FF55, true);
+                graphics.text(this.getFont(), Component.literal("§a✔ Active"), boxX + 215, rowY + 10, 0xFF55FF55, true);
             }
         }
 
-        // Draggable Scrollbar for Profession tab
         renderProfessionScrollbar(graphics, boxX, boxY, selectable.length);
     }
 
@@ -483,14 +516,14 @@ public class EconomicsBoxScreen extends Screen {
         int maxOffset = Math.max(0, totalItems - 3);
         if (maxOffset <= 0) return;
 
-        int trackX = boxX + BOX_WIDTH - 11;
-        int trackY = boxY + 58;
+        int trackX = boxX + BOX_WIDTH - 18;
+        int trackY = boxY + 74;
         int trackW = 6;
-        int trackH = 104;
+        int trackH = 76;
 
         graphics.fill(trackX, trackY, trackX + trackW, trackY + trackH, 0xFF151515);
 
-        int thumbH = Math.max(18, (trackH * 3) / Math.max(1, totalItems));
+        int thumbH = Math.max(16, (trackH * 3) / Math.max(1, totalItems));
         int thumbY = trackY + ((trackH - thumbH) * professionScrollOffset) / maxOffset;
         int thumbColor = isDraggingScrollbar ? 0xFFAAAAAA : 0xFF666666;
 
@@ -502,14 +535,14 @@ public class EconomicsBoxScreen extends Screen {
         int boxX = (this.width  - BOX_WIDTH)  / 2;
         int boxY = (this.height - BOX_HEIGHT) / 2;
 
-        int trackX = boxX + BOX_WIDTH - 11;
+        int trackX = boxX + BOX_WIDTH - 18;
         double mx = event.x();
         double my = event.y();
 
         if (activeTab == Tab.SHOP) {
-            int trackY = boxY + 24;
+            int trackY = boxY + 40;
             int trackW = 6;
-            int trackH = 144;
+            int trackH = 112;
 
             if (mx >= trackX - 4 && mx <= trackX + trackW + 4 && my >= trackY && my <= trackY + trackH) {
                 isDraggingScrollbar = true;
@@ -517,9 +550,9 @@ public class EconomicsBoxScreen extends Screen {
                 return true;
             }
         } else if (activeTab == Tab.PROFESSION) {
-            int trackY = boxY + 58;
+            int trackY = boxY + 74;
             int trackW = 6;
-            int trackH = 104;
+            int trackH = 76;
 
             if (mx >= trackX - 4 && mx <= trackX + trackW + 4 && my >= trackY && my <= trackY + trackH) {
                 isDraggingScrollbar = true;
@@ -535,13 +568,13 @@ public class EconomicsBoxScreen extends Screen {
         int boxY = (this.height - BOX_HEIGHT) / 2;
 
         if (activeTab == Tab.SHOP && isDraggingScrollbar) {
-            int trackY = boxY + 24;
-            int trackH = 144;
+            int trackY = boxY + 40;
+            int trackH = 112;
             updateScrollFromMouseY((int) event.y(), trackY, trackH);
             return true;
         } else if (activeTab == Tab.PROFESSION && isDraggingScrollbar) {
-            int trackY = boxY + 58;
-            int trackH = 104;
+            int trackY = boxY + 74;
+            int trackH = 76;
             updateProfessionScrollFromMouseY((int) event.y(), trackY, trackH);
             return true;
         }
@@ -560,7 +593,7 @@ public class EconomicsBoxScreen extends Screen {
         int maxOffset = Math.max(0, totalItems - 4);
         if (maxOffset <= 0) return;
 
-        int thumbH = Math.max(18, (trackH * 4) / Math.max(1, totalItems));
+        int thumbH = Math.max(16, (trackH * 4) / Math.max(1, totalItems));
         float ratio = (float) (mouseY - trackY - (thumbH / 2)) / (trackH - thumbH);
         int newOffset = Math.clamp(Math.round(ratio * maxOffset), 0, maxOffset);
 
@@ -575,7 +608,7 @@ public class EconomicsBoxScreen extends Screen {
         int maxOffset = Math.max(0, totalItems - 3);
         if (maxOffset <= 0) return;
 
-        int thumbH = Math.max(18, (trackH * 3) / totalItems);
+        int thumbH = Math.max(16, (trackH * 3) / totalItems);
         float ratio = (float) (mouseY - trackY - (thumbH / 2)) / (trackH - thumbH);
         int newOffset = Math.clamp(Math.round(ratio * maxOffset), 0, maxOffset);
 

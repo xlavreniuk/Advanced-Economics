@@ -1,15 +1,15 @@
 package com.example.advancedeconomics.profession;
 
 /**
- * Profession Enum with concise descriptions and 2%/level sell price bonuses.
+ * Profession Enum with concise descriptions.
  */
 public enum Profession {
     NONE("Unemployed", "No active profession.", "none"),
-    LUMBERJACK("Lumberjack", "Wood & forestry (+2%/lvl)", "wood"),
-    MINER("Miner", "Stones & ores (+2%/lvl)", "miner"),
-    FARMER("Farmer", "Crops & food (+2%/lvl)", "farmer"),
-    HUNTER("Hunter", "Mob drops & meats (+2%/lvl)", "hunter"),
-    WEAPONSMITH("Weaponsmith", "Weapons & armor (+2%/lvl)", "gear");
+    LUMBERJACK("Lumberjack", "Wood & forestry", "wood"),
+    MINER("Miner", "Stones & ores", "miner"),
+    FARMER("Farmer", "Crops & food", "farmer"),
+    HUNTER("Hunter", "Mob drops & meats", "hunter"),
+    WEAPONSMITH("Weaponsmith", "Weapons & armor", "gear");
 
     private final String displayName;
     private final String description;
