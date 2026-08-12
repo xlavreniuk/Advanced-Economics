@@ -35,15 +35,20 @@ import net.minecraft.world.item.Rarity;
 
 import java.io.File;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Main Fabric Initializer (v0.41).
- * Indexes 100% of all vanilla Minecraft items (1,400+) into the shop table!
+ * Main Fabric Initializer (v0.42).
+ * Equipped with full Anti-Abuse, Anti-Arbitrage, Anti-Spam & Rate Limiting protection suite!
  */
 public class AdvancedEconomicsFabric implements ModInitializer {
 
     private int tickCounter = 0;
+    private static final Map<UUID, Long> LAST_TRANSACTION_MS = new ConcurrentHashMap<>();
+    private static final long TRANSACTION_COOLDOWN_MS = 100L; // 100ms rate limit per player
 
     @Override
     public void onInitialize() {
@@ -65,7 +70,7 @@ public class AdvancedEconomicsFabric implements ModInitializer {
         // 3. Register Commands Suite (/ae)
         registerCommands();
 
-        // 4. Index ALL 1,400+ Minecraft Items into ShopTable!
+        // 4. Index ALL 1,400+ Minecraft Items into ShopTable
         registerAllMinecraftItems();
 
         // 5. World Lifecycle Events
@@ -103,10 +108,10 @@ public class AdvancedEconomicsFabric implements ModInitializer {
             syncPlayerState(player);
         });
 
-        // 7. Serverbound Packet Handlers
+        // 7. Serverbound Packet Handlers with Anti-Spam Rate-Limiting
         ServerPlayNetworking.registerGlobalReceiver(RequestSetProfessionPayload.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();
-            if (player != null && ShopSettings.isEnableProfessions()) {
+            if (player != null && checkRateLimit(player) && ShopSettings.isEnableProfessions()) {
                 Profession prof = Profession.fromId(payload.professionId());
                 ProfessionManager.setProfession(player.getUUID(), prof);
                 syncPlayerState(player);
@@ -116,7 +121,7 @@ public class AdvancedEconomicsFabric implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(RequestUnlockPayload.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();
             ShopItem item = ShopTable.findById(payload.itemId());
-            if (player != null && item != null && ShopSettings.isAllowUnlocking()) {
+            if (player != null && checkRateLimit(player) && item != null && ShopSettings.isAllowUnlocking()) {
                 double costDollars = ShopSettings.calculateUnlockPrice(item.basePrice());
                 long costCents = Math.round(costDollars * 100.0);
                 if (EconomyManager.withdraw(player.getUUID(), costCents)) {
@@ -129,7 +134,7 @@ public class AdvancedEconomicsFabric implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(RequestBuyPayload.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();
             ShopItem shopItem = ShopTable.findById(payload.itemId());
-            if (player != null && shopItem != null) {
+            if (player != null && checkRateLimit(player) && shopItem != null) {
                 executeBuyItem(player, shopItem, 1);
             }
         });
@@ -137,14 +142,14 @@ public class AdvancedEconomicsFabric implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(RequestSellPayload.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();
             ShopItem shopItem = ShopTable.findById(payload.itemId());
-            if (player != null && shopItem != null) {
+            if (player != null && checkRateLimit(player) && shopItem != null) {
                 executeSellItem(player, shopItem, 1);
             }
         });
 
         ServerPlayNetworking.registerGlobalReceiver(RequestUpdateSettingsPayload.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();
-            if (player != null) {
+            if (player != null && context.server().getPlayerList().isOp(player.nameAndId())) {
                 ShopSettings.setSellMultiplier(payload.sellMultiplier());
                 ShopSettings.setBuyMultiplier(payload.buyMultiplier());
                 ShopSettings.setUnlockMultiplier(payload.unlockMultiplier());
@@ -173,7 +178,18 @@ public class AdvancedEconomicsFabric implements ModInitializer {
             }
         });
 
-        AdvancedEconomicsCommon.LOGGER.info("Advanced Economics Fabric fully initialized with {} shop items.", ShopTable.getItems().size());
+        AdvancedEconomicsCommon.LOGGER.info("Advanced Economics Fabric fully initialized with Anti-Abuse protections.");
+    }
+
+    private static boolean checkRateLimit(ServerPlayer player) {
+        if (player == null) return false;
+        long now = System.currentTimeMillis();
+        long last = LAST_TRANSACTION_MS.getOrDefault(player.getUUID(), 0L);
+        if (now - last < TRANSACTION_COOLDOWN_MS) {
+            return false; // Packet sent too fast (macro/auto-clicker prevention)
+        }
+        LAST_TRANSACTION_MS.put(player.getUUID(), now);
+        return true;
     }
 
     private static void registerAllMinecraftItems() {
@@ -269,13 +285,19 @@ public class AdvancedEconomicsFabric implements ModInitializer {
                     return 1;
                 }))
 
-                // 1. /ae send <amount> <player>
+                // 1. /ae send <amount> <player> (With Self-Send Anti-Abuse Check)
                 .then(Commands.literal("send")
                     .then(Commands.argument("amount", DoubleArgumentType.doubleArg(0.01))
                         .then(Commands.argument("player", EntityArgument.player())
                             .executes(context -> {
                                 ServerPlayer sender = context.getSource().getPlayerOrException();
                                 ServerPlayer target = EntityArgument.getPlayer(context, "player");
+
+                                if (sender.getUUID().equals(target.getUUID())) {
+                                    sender.sendSystemMessage(Component.literal("§c[AE] You cannot send money to yourself!"));
+                                    return 0;
+                                }
+
                                 double amountDollars = DoubleArgumentType.getDouble(context, "amount");
                                 long cents = Math.round(amountDollars * 100.0);
 
@@ -496,12 +518,18 @@ public class AdvancedEconomicsFabric implements ModInitializer {
         if (countSold > 0) {
             double basePayoutDollars = ShopSettings.calculateSellPrice(shopItem.basePrice()) * countSold;
             double bonusRatio = ShopSettings.isEnableProfessions() ? ProfessionManager.getProfessionSellBonusRatio(player.getUUID(), shopItem.id()) : 1.0;
-            double finalPayoutDollars = basePayoutDollars * bonusRatio;
+            double rawPayoutDollars = basePayoutDollars * bonusRatio;
+
+            // Anti-Arbitrage Ceiling: Payout after profession bonus can NEVER exceed 85% of buy price!
+            double maxAllowedPayoutDollars = ShopSettings.calculateBuyPrice(shopItem.basePrice()) * countSold * 0.85;
+            double finalPayoutDollars = Math.min(rawPayoutDollars, maxAllowedPayoutDollars);
 
             long payoutCents = Math.max(1L, Math.round(finalPayoutDollars * 100.0));
 
             if (ShopSettings.isEnableXpLeveling()) {
-                long xpAmount = Math.max(1L, Math.round(shopItem.basePrice() * 100.0 * countSold));
+                // Anti-XP Exploit: Cap max XP gain per sale to 500 XP to prevent level farming glitches
+                long rawXp = Math.round(shopItem.basePrice() * 50.0 * countSold);
+                long xpAmount = Math.max(1L, Math.min(500L, rawXp));
                 ProfessionManager.addXp(player.getUUID(), xpAmount);
             }
 

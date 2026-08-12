@@ -9,7 +9,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 
 /**
- * Global Economy Settings & Feature Toggles Config (v0.38).
+ * Global Economy Settings & Anti-Arbitrage Price Protection (v0.42).
  */
 public class ShopSettings {
 
@@ -101,8 +101,16 @@ public class ShopSettings {
         enableXpLeveling = enable;
     }
 
+    /**
+     * Calculates base sell price with anti-arbitrage ceiling (max 80% of buy price).
+     */
     public static double calculateSellPrice(double basePrice) {
-        return Math.max(0.01, Math.round(basePrice * sellMultiplier * 100.0) / 100.0);
+        double rawSell = basePrice * sellMultiplier;
+        double buyPrice = calculateBuyPrice(basePrice);
+        double maxAllowedSell = buyPrice * 0.80;
+
+        double finalSell = Math.min(rawSell, maxAllowedSell);
+        return Math.max(0.01, Math.round(finalSell * 100.0) / 100.0);
     }
 
     public static double calculateBuyPrice(double basePrice) {
