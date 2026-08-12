@@ -11,7 +11,6 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.KeyMapping;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -24,7 +23,7 @@ import java.lang.reflect.Field;
  * Fabric Client Mod Initializer for Advanced Economics (v1.0).
  * - Receives server-authoritative balance and profession packets.
  * - Injects "$ <balance>" + "Economics" buttons into inventory.
- * - Renders profession text directly above the 3D player entity model head in inventory.
+ * - Adds ProfessionLabelWidget directly above the 3D player model head in inventory.
  */
 public class EconomicsFabricClient implements ClientModInitializer {
 
@@ -91,7 +90,7 @@ public class EconomicsFabricClient implements ClientModInitializer {
                 }
             });
 
-            // 3. Inject Inventory widgets and render profession above player head
+            // 3. Inject Inventory widgets & profession label widget
             ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
                 if (!(screen instanceof InventoryScreen inv)) return;
 
@@ -133,24 +132,13 @@ public class EconomicsFabricClient implements ClientModInitializer {
                         ).bounds(ecoX, rowY, ecoWidth, btnHeight).build()
                 );
 
-                // 4. Render profession text directly above 3D player entity head in inventory
-                final int finalLeftPos = leftPos;
-                final int finalTopPos  = topPos;
-                ScreenEvents.afterExtract(screen).register((scr, graphics, mouseX, mouseY, delta) -> {
-                    try {
-                        Font font = Screens.getFont(scr);
-                        String profession = ClientEconomyState.getProfession();
-                        // 3D Player preview box center is at leftPos + 51, top is at topPos + 8
-                        int headX = finalLeftPos + 51;
-                        int headY = finalTopPos + 6;
-
-                        int textColor = "None".equalsIgnoreCase(profession) ? 0xAAAAAA : 0xFFDD55;
-                        graphics.centeredText(font, profession, headX, headY, textColor);
-                    } catch (Throwable ignored) {}
-                });
+                // Profession text widget rendered centered directly above player 3D entity model head
+                Screens.getWidgets(screen).add(
+                        new ProfessionLabelWidget(leftPos + 26, topPos + 6, 50, 10)
+                );
             });
 
-            AdvancedEconomicsCommon.LOGGER.info("Ready. Profession overlay & server economy active.");
+            AdvancedEconomicsCommon.LOGGER.info("Ready. Profession widget overlay & server economy active.");
 
         } catch (Throwable t) {
             AdvancedEconomicsCommon.LOGGER.error("[AE] Client init failed: {}", t.getMessage(), t);

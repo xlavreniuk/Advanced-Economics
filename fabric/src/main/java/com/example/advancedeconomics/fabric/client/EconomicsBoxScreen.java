@@ -7,8 +7,8 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 
 /**
- * Advanced Economics UI Screen (v0.9)
- * Displays official server-authoritative balance synced from server.
+ * Advanced Economics UI Screen (v1.0).
+ * Clean container GUI with Shop, Profession, and Close buttons.
  */
 public class EconomicsBoxScreen extends Screen {
 
@@ -52,21 +52,16 @@ public class EconomicsBoxScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        // Dark translucent background
+        // Dark translucent full-screen background
         graphics.fill(0, 0, this.width, this.height, 0xA0000000);
 
         int boxX = (this.width  - BOX_WIDTH)  / 2;
         int boxY = (this.height - BOX_HEIGHT) / 2;
 
-        // Border + container box
+        // Border + empty container box
         graphics.fill(boxX - BORDER, boxY - BORDER,
                       boxX + BOX_WIDTH + BORDER, boxY + BOX_HEIGHT + BORDER, 0xFF888888);
         graphics.fill(boxX, boxY, boxX + BOX_WIDTH, boxY + BOX_HEIGHT, 0xF0101010);
-
-        // Display server-authoritative balance inside container
-        long balance = ClientEconomyState.getBalance();
-        graphics.centeredText(this.getFont(), "Server Balance: $" + balance,
-                this.width / 2, boxY + 20, 0xFF55FF55);
 
         // Widgets (buttons) on top
         super.extractRenderState(graphics, mouseX, mouseY, delta);
