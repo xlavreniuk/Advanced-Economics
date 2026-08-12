@@ -309,98 +309,98 @@ public class EconomicsBoxScreen extends Screen {
         }
     }
 
+    // Settings logical rows: 0=divider(Toggles), 1-5=toggles, 6=divider(Multipliers), 7-9=steppers
+    // Total = 10 logical rows
+    private static final int SETTINGS_TOTAL_ROWS = 10;
+    private static final int SETTINGS_ROW_H      = 28; // tighter rows for full-height fit
+
     private void buildSettingsTabWidgets(int boxX, int boxY) {
-        int totalSettings = 8;
-        int maxOffset = Math.max(0, totalSettings - 4);
+        int visibleH    = BOX_HEIGHT - 8;           // full tab area top-to-bottom
+        int visibleRows = visibleH / SETTINGS_ROW_H;
+        int maxOffset   = Math.max(0, SETTINGS_TOTAL_ROWS - visibleRows);
         settingsScrollOffset = Math.clamp(settingsScrollOffset, 0, maxOffset);
 
-        // Scroll Buttons for Settings Tab
-        addRenderableWidget(Button.builder(Component.literal("▲"), btn -> {
-            if (settingsScrollOffset > 0) {
-                settingsScrollOffset--;
-                rebuildWidgets();
-            }
-        }).bounds(boxX + BOX_WIDTH - 21, boxY + 26, 12, 10).build());
+        int startY = boxY + 4;                      // start right at top of box
 
-        addRenderableWidget(Button.builder(Component.literal("▼"), btn -> {
-            if (settingsScrollOffset < maxOffset) {
-                settingsScrollOffset++;
-                rebuildWidgets();
-            }
-        }).bounds(boxX + BOX_WIDTH - 21, boxY + 154, 12, 10).build());
-
-        int startY = boxY + 24;
-        int rowHeight = 36;
-
-        int sellM     = ClientEconomyState.getSellMultiplier();
-        int buyM      = ClientEconomyState.getBuyMultiplier();
-        int unlockM   = ClientEconomyState.getUnlockMultiplier();
+        int sellM  = ClientEconomyState.getSellMultiplier();
+        int buyM   = ClientEconomyState.getBuyMultiplier();
+        int unlockM = ClientEconomyState.getUnlockMultiplier();
         boolean sellOn = ClientEconomyState.isAllowSelling();
         boolean buyOn  = ClientEconomyState.isAllowBuying();
         boolean unkOn  = ClientEconomyState.isAllowUnlocking();
         boolean profOn = ClientEconomyState.isEnableProfessions();
         boolean xpOn   = ClientEconomyState.isEnableXpLeveling();
 
-        for (int i = 0; i < 4; i++) {
-            int settingIndex = settingsScrollOffset + i;
-            if (settingIndex >= totalSettings) break;
+        // Scroll arrows at far right, full height
+        int arrowX = boxX + BOX_WIDTH - 21;
+        addRenderableWidget(Button.builder(Component.literal("▲"), btn -> {
+            if (settingsScrollOffset > 0) { settingsScrollOffset--; rebuildWidgets(); }
+        }).bounds(arrowX, boxY + 4, 12, 10).build());
+        addRenderableWidget(Button.builder(Component.literal("▼"), btn -> {
+            if (settingsScrollOffset < maxOffset) { settingsScrollOffset++; rebuildWidgets(); }
+        }).bounds(arrowX, boxY + BOX_HEIGHT - 14, 12, 10).build());
 
-            int rowY = startY + (i * rowHeight);
+        for (int vi = 0; vi < visibleRows; vi++) {
+            int logRow = settingsScrollOffset + vi;
+            if (logRow >= SETTINGS_TOTAL_ROWS) break;
+            int rowY = startY + vi * SETTINGS_ROW_H;
+            int btnY = rowY + (SETTINGS_ROW_H - 18) / 2;
 
-            switch (settingIndex) {
-                case 0 -> { // Allow Selling
-                    String label = sellOn ? "§a[ON]" : "§c[OFF]";
-                    addRenderableWidget(Button.builder(Component.literal(label), btn -> {
-                        sendUpdateSettings(sellM, buyM, unlockM, !sellOn, buyOn, unkOn, profOn, xpOn);
-                    }).bounds(boxX + 236, rowY + 9, 58, 18).build());
+            // row 0 = Toggles divider, row 6 = Multipliers divider → no widget
+            switch (logRow) {
+                case 1 -> { // Selling
+                    String lbl = sellOn ? "§a[ON]" : "§c[OFF]";
+                    addRenderableWidget(Button.builder(Component.literal(lbl), btn ->
+                        sendUpdateSettings(sellM, buyM, unlockM, !sellOn, buyOn, unkOn, profOn, xpOn)
+                    ).bounds(boxX + 236, btnY, 58, 18).build());
                 }
-                case 1 -> { // Allow Buying
-                    String label = buyOn ? "§a[ON]" : "§c[OFF]";
-                    addRenderableWidget(Button.builder(Component.literal(label), btn -> {
-                        sendUpdateSettings(sellM, buyM, unlockM, sellOn, !buyOn, unkOn, profOn, xpOn);
-                    }).bounds(boxX + 236, rowY + 9, 58, 18).build());
+                case 2 -> { // Buying
+                    String lbl = buyOn ? "§a[ON]" : "§c[OFF]";
+                    addRenderableWidget(Button.builder(Component.literal(lbl), btn ->
+                        sendUpdateSettings(sellM, buyM, unlockM, sellOn, !buyOn, unkOn, profOn, xpOn)
+                    ).bounds(boxX + 236, btnY, 58, 18).build());
                 }
-                case 2 -> { // Allow Unlocking
-                    String label = unkOn ? "§a[ON]" : "§c[OFF]";
-                    addRenderableWidget(Button.builder(Component.literal(label), btn -> {
-                        sendUpdateSettings(sellM, buyM, unlockM, sellOn, buyOn, !unkOn, profOn, xpOn);
-                    }).bounds(boxX + 236, rowY + 9, 58, 18).build());
+                case 3 -> { // Unlocking
+                    String lbl = unkOn ? "§a[ON]" : "§c[OFF]";
+                    addRenderableWidget(Button.builder(Component.literal(lbl), btn ->
+                        sendUpdateSettings(sellM, buyM, unlockM, sellOn, buyOn, !unkOn, profOn, xpOn)
+                    ).bounds(boxX + 236, btnY, 58, 18).build());
                 }
-                case 3 -> { // Enable Professions
-                    String label = profOn ? "§a[ON]" : "§c[OFF]";
-                    addRenderableWidget(Button.builder(Component.literal(label), btn -> {
-                        sendUpdateSettings(sellM, buyM, unlockM, sellOn, buyOn, unkOn, !profOn, xpOn);
-                    }).bounds(boxX + 236, rowY + 9, 58, 18).build());
+                case 4 -> { // Professions
+                    String lbl = profOn ? "§a[ON]" : "§c[OFF]";
+                    addRenderableWidget(Button.builder(Component.literal(lbl), btn ->
+                        sendUpdateSettings(sellM, buyM, unlockM, sellOn, buyOn, unkOn, !profOn, xpOn)
+                    ).bounds(boxX + 236, btnY, 58, 18).build());
                 }
-                case 4 -> { // Enable XP Leveling
-                    String label = xpOn ? "§a[ON]" : "§c[OFF]";
-                    addRenderableWidget(Button.builder(Component.literal(label), btn -> {
-                        sendUpdateSettings(sellM, buyM, unlockM, sellOn, buyOn, unkOn, profOn, !xpOn);
-                    }).bounds(boxX + 236, rowY + 9, 58, 18).build());
+                case 5 -> { // XP Leveling
+                    String lbl = xpOn ? "§a[ON]" : "§c[OFF]";
+                    addRenderableWidget(Button.builder(Component.literal(lbl), btn ->
+                        sendUpdateSettings(sellM, buyM, unlockM, sellOn, buyOn, unkOn, profOn, !xpOn)
+                    ).bounds(boxX + 236, btnY, 58, 18).build());
                 }
-                case 5 -> { // Sell Multiplier
-                    addRenderableWidget(Button.builder(Component.literal("-"), btn -> {
-                        sendUpdateSettings(Math.max(1, sellM - 1), buyM, unlockM, sellOn, buyOn, unkOn, profOn, xpOn);
-                    }).bounds(boxX + 236, rowY + 9, 26, 18).build());
-                    addRenderableWidget(Button.builder(Component.literal("+"), btn -> {
-                        sendUpdateSettings(sellM + 1, buyM, unlockM, sellOn, buyOn, unkOn, profOn, xpOn);
-                    }).bounds(boxX + 268, rowY + 9, 26, 18).build());
+                case 7 -> { // Sell ×
+                    addRenderableWidget(Button.builder(Component.literal("-"), btn ->
+                        sendUpdateSettings(Math.max(1, sellM - 1), buyM, unlockM, sellOn, buyOn, unkOn, profOn, xpOn)
+                    ).bounds(boxX + 236, btnY, 26, 18).build());
+                    addRenderableWidget(Button.builder(Component.literal("+"), btn ->
+                        sendUpdateSettings(sellM + 1, buyM, unlockM, sellOn, buyOn, unkOn, profOn, xpOn)
+                    ).bounds(boxX + 268, btnY, 26, 18).build());
                 }
-                case 6 -> { // Buy Multiplier
-                    addRenderableWidget(Button.builder(Component.literal("-"), btn -> {
-                        sendUpdateSettings(sellM, Math.max(1, buyM - 1), unlockM, sellOn, buyOn, unkOn, profOn, xpOn);
-                    }).bounds(boxX + 236, rowY + 9, 26, 18).build());
-                    addRenderableWidget(Button.builder(Component.literal("+"), btn -> {
-                        sendUpdateSettings(sellM, buyM + 1, unlockM, sellOn, buyOn, unkOn, profOn, xpOn);
-                    }).bounds(boxX + 268, rowY + 9, 26, 18).build());
+                case 8 -> { // Buy ×
+                    addRenderableWidget(Button.builder(Component.literal("-"), btn ->
+                        sendUpdateSettings(sellM, Math.max(1, buyM - 1), unlockM, sellOn, buyOn, unkOn, profOn, xpOn)
+                    ).bounds(boxX + 236, btnY, 26, 18).build());
+                    addRenderableWidget(Button.builder(Component.literal("+"), btn ->
+                        sendUpdateSettings(sellM, buyM + 1, unlockM, sellOn, buyOn, unkOn, profOn, xpOn)
+                    ).bounds(boxX + 268, btnY, 26, 18).build());
                 }
-                case 7 -> { // Unlock Multiplier
-                    addRenderableWidget(Button.builder(Component.literal("-"), btn -> {
-                        sendUpdateSettings(sellM, buyM, Math.max(1, unlockM - 1), sellOn, buyOn, unkOn, profOn, xpOn);
-                    }).bounds(boxX + 236, rowY + 9, 26, 18).build());
-                    addRenderableWidget(Button.builder(Component.literal("+"), btn -> {
-                        sendUpdateSettings(sellM, buyM, unlockM + 1, sellOn, buyOn, unkOn, profOn, xpOn);
-                    }).bounds(boxX + 268, rowY + 9, 26, 18).build());
+                case 9 -> { // Unlock ×
+                    addRenderableWidget(Button.builder(Component.literal("-"), btn ->
+                        sendUpdateSettings(sellM, buyM, Math.max(1, unlockM - 1), sellOn, buyOn, unkOn, profOn, xpOn)
+                    ).bounds(boxX + 236, btnY, 26, 18).build());
+                    addRenderableWidget(Button.builder(Component.literal("+"), btn ->
+                        sendUpdateSettings(sellM, buyM, unlockM + 1, sellOn, buyOn, unkOn, profOn, xpOn)
+                    ).bounds(boxX + 268, btnY, 26, 18).build());
                 }
             }
         }
@@ -442,9 +442,9 @@ public class EconomicsBoxScreen extends Screen {
             renderShopRows(graphics, boxX, boxY);
             renderDraggableScrollbar(graphics, boxX, boxY);
         } else if (activeTab == Tab.SETTINGS) {
-            graphics.fill(boxX + 5, boxY + 24, boxX + BOX_WIDTH - 10, boxY + 168, 0xFF0A0A0A);
+            graphics.fill(boxX + 4, boxY + 4, boxX + BOX_WIDTH - 14, boxY + BOX_HEIGHT - 4, 0xFF0A0A0A);
             renderSettingsTab(graphics, boxX, boxY);
-            renderSettingsScrollbar(graphics, boxX, boxY, 8);
+            renderSettingsScrollbar(graphics, boxX, boxY, SETTINGS_TOTAL_ROWS);
         } else if (activeTab == Tab.PROFESSION) {
             renderProfessionTab(graphics, boxX, boxY);
         }
@@ -544,65 +544,74 @@ public class EconomicsBoxScreen extends Screen {
     }
 
     private void renderSettingsTab(GuiGraphicsExtractor graphics, int boxX, int boxY) {
-        int startY = boxY + 24;
-        int rowHeight = 36;
-        int totalSettings = 8;
+        int visibleH    = BOX_HEIGHT - 8;
+        int visibleRows = visibleH / SETTINGS_ROW_H;
+        int startY      = boxY + 4;
 
-        int sellM     = ClientEconomyState.getSellMultiplier();
-        int buyM      = ClientEconomyState.getBuyMultiplier();
-        int unlockM   = ClientEconomyState.getUnlockMultiplier();
+        int sellM   = ClientEconomyState.getSellMultiplier();
+        int buyM    = ClientEconomyState.getBuyMultiplier();
+        int unlockM = ClientEconomyState.getUnlockMultiplier();
 
-        String[] settingTitles = new String[]{
-                "Allow Selling Items",
-                "Allow Buying Items",
-                "Allow Unlocking Items",
-                "Enable Professions System",
-                "Enable XP & Leveling",
-                "Sell Price Multiplier",
-                "Buy Price Multiplier",
-                "Unlock Price Multiplier"
+        // Logical row definitions: [name, description]  (null = section divider)
+        String[][] rows = new String[][]{
+            null,                                                         // 0  Toggles divider
+            {"Selling",    "Players can sell items for money"},           // 1
+            {"Buying",     "Players can buy unlocked items"},             // 2
+            {"Unlocking",  "Players can unlock new items"},              // 3
+            {"Professions","Career bonuses & profession tree"},           // 4
+            {"XP Leveling","Gain XP and level up professions"},          // 5
+            null,                                                         // 6  Multipliers divider
+            {"Sell ×",     "Current: " + sellM + "x  (sell price scale)"},  // 7
+            {"Buy ×",      "Current: " + buyM  + "x  (buy price scale)"},   // 8
+            {"Unlock ×",   "Current: " + unlockM + "x  (unlock price scale)"}, // 9
         };
 
-        String[] settingDescs = new String[]{
-                "Allow players to sell items for money",
-                "Allow players to buy unlocked items",
-                "Allow players to unlock new items",
-                "Enable career profession bonuses",
-                "Enable gaining XP & leveling professions",
-                "Multiplies sell prices (Current: " + sellM + "x)",
-                "Multiplies buy prices (Current: " + buyM + "x)",
-                "Multiplies unlock prices (Current: " + unlockM + "x)"
-        };
+        String[] dividerLabels = {"Toggles", "Multipliers"};
+        int dividerIdx = 0;
 
-        for (int i = 0; i < 4; i++) {
-            int settingIndex = settingsScrollOffset + i;
-            if (settingIndex >= totalSettings) break;
+        for (int vi = 0; vi < visibleRows; vi++) {
+            int logRow = settingsScrollOffset + vi;
+            if (logRow >= SETTINGS_TOTAL_ROWS) break;
+            int rowY = startY + vi * SETTINGS_ROW_H;
 
-            int rowY = startY + (i * rowHeight);
-
-            graphics.fill(boxX + 6, rowY + 1, boxX + BOX_WIDTH - 20, rowY + rowHeight - 1, 0xFF181818);
-            graphics.fill(boxX + 6, rowY + rowHeight - 1, boxX + BOX_WIDTH - 20, rowY + rowHeight, 0xFF282828);
-
-            graphics.text(this.getFont(), Component.literal(settingTitles[settingIndex]), boxX + 14, rowY + 7, 0xFFFFFFFF, true);
-            graphics.text(this.getFont(), Component.literal("§7" + settingDescs[settingIndex]), boxX + 14, rowY + 19, 0xFFAAAAAA, true);
+            if (rows[logRow] == null) {
+                // Section divider — full-width header strip
+                String label = logRow == 0 ? "Toggles" : "Multipliers";
+                graphics.fill(boxX + 4, rowY + 2, boxX + BOX_WIDTH - 14, rowY + SETTINGS_ROW_H - 2, 0xFF111111);
+                // Left accent bar
+                graphics.fill(boxX + 4, rowY + 2, boxX + 7, rowY + SETTINGS_ROW_H - 2, 0xFF4488FF);
+                // Divider lines top + bottom
+                graphics.fill(boxX + 4, rowY + 2, boxX + BOX_WIDTH - 14, rowY + 3, 0xFF333344);
+                graphics.fill(boxX + 4, rowY + SETTINGS_ROW_H - 3, boxX + BOX_WIDTH - 14, rowY + SETTINGS_ROW_H - 2, 0xFF333344);
+                graphics.text(this.getFont(), Component.literal("§b§l" + label), boxX + 14, rowY + (SETTINGS_ROW_H - 7) / 2, 0xFF88CCFF, true);
+            } else {
+                // Normal row
+                graphics.fill(boxX + 6, rowY + 1, boxX + BOX_WIDTH - 20, rowY + SETTINGS_ROW_H - 1, 0xFF181818);
+                graphics.fill(boxX + 6, rowY + SETTINGS_ROW_H - 1, boxX + BOX_WIDTH - 20, rowY + SETTINGS_ROW_H, 0xFF282828);
+                // Bold name
+                graphics.text(this.getFont(), Component.literal("§f§l" + rows[logRow][0]), boxX + 14, rowY + 4, 0xFFFFFFFF, true);
+                // Dim description
+                graphics.text(this.getFont(), Component.literal("§7" + rows[logRow][1]), boxX + 14, rowY + 15, 0xFFAAAAAA, true);
+            }
         }
     }
 
     private void renderSettingsScrollbar(GuiGraphicsExtractor graphics, int boxX, int boxY, int totalItems) {
-        int maxOffset = Math.max(0, totalItems - 4);
+        int visibleH    = BOX_HEIGHT - 8;
+        int visibleRows = visibleH / SETTINGS_ROW_H;
+        int maxOffset   = Math.max(0, totalItems - visibleRows);
         if (maxOffset <= 0) return;
 
         int trackX = boxX + BOX_WIDTH - 18;
-        int trackY = boxY + 38;
-        int trackW = 6;
-        int trackH = 114;
+        int trackY = boxY + 16;
+        int trackW = 5;
+        int trackH = BOX_HEIGHT - 28;
 
         graphics.fill(trackX, trackY, trackX + trackW, trackY + trackH, 0xFF151515);
 
-        int thumbH = Math.max(16, (trackH * 4) / Math.max(1, totalItems));
+        int thumbH = Math.max(12, (trackH * visibleRows) / Math.max(1, totalItems));
         int thumbY = trackY + ((trackH - thumbH) * settingsScrollOffset) / maxOffset;
         int thumbColor = isDraggingScrollbar ? 0xFFAAAAAA : 0xFF666666;
-
         graphics.fill(trackX, thumbY, trackX + trackW, thumbY + thumbH, thumbColor);
     }
 
