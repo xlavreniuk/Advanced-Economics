@@ -24,8 +24,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Fabric Client Mod Initializer for Advanced Economics (v0.23).
- * Receives sync payloads for balance, profession level, XP, multipliers, and unlocks.
+ * Fabric Client Mod Initializer for Advanced Economics (v0.25).
+ * Dynamically resizes profession inventory button to fit profession name + blue "Lvl X" label.
  */
 public class EconomicsFabricClient implements ClientModInitializer {
 
@@ -52,7 +52,7 @@ public class EconomicsFabricClient implements ClientModInitializer {
     public void onInitializeClient() {
         try {
             AdvancedEconomicsCommon.LOGGER.info("=============================================");
-            AdvancedEconomicsCommon.LOGGER.info("Advanced Economics Fabric Client v0.23");
+            AdvancedEconomicsCommon.LOGGER.info("Advanced Economics Fabric Client v0.25");
             AdvancedEconomicsCommon.LOGGER.info("=============================================");
 
             // 1. Register Client Receivers (Thread-safe execution on client thread)
@@ -138,35 +138,44 @@ public class EconomicsFabricClient implements ClientModInitializer {
                 }
 
                 int btnHeight  = 14;
-                int balWidth   = 52;
-                int profWidth  = 80;
                 int gap        = 3;
                 int rowY       = topPos - btnHeight - 2;
-
-                int balX = leftPos + imageWidth - balWidth;
-                int profX = balX - gap - profWidth;
 
                 long currentBalance = ClientEconomyState.getBalance();
                 String profession = ClientEconomyState.getProfession();
                 int level = ClientEconomyState.getLevel();
 
-                // Profession Button -> Shows Profession & Level (e.g. "Farmer Lvl 2")
-                String profLabel = profession.equalsIgnoreCase("Unemployed") ? "No Profession" : (profession + " Lvl " + level);
+                // Format Profession label with blue Lvl text (e.g. "Weaponsmith §bLvl 1")
+                String profName = profession.equalsIgnoreCase("Unemployed") ? "No Profession" : profession;
+                String profLabel = profName + " §bLvl " + level;
+                String balLabel = "§a$ " + currentBalance;
+
+                // Dynamically fit text width
+                int profTextWidth = client.font.width(profLabel);
+                int balTextWidth  = client.font.width(balLabel);
+
+                int profWidth = Math.max(76, profTextWidth + 10);
+                int balWidth  = Math.max(46, balTextWidth + 10);
+
+                int balX  = leftPos + imageWidth - balWidth;
+                int profX = balX - gap - profWidth;
+
+                // Profession Button
                 Screens.getWidgets(screen).add(
                         Button.builder(Component.literal(profLabel), btn ->
                                 client.gui.setScreen(new EconomicsBoxScreen(EconomicsBoxScreen.Tab.PROFESSION))
                         ).bounds(profX, rowY, profWidth, btnHeight).build()
                 );
 
-                // Money Balance Button -> Opens Shop Tab
+                // Money Balance Button
                 Screens.getWidgets(screen).add(
-                        Button.builder(Component.literal("§a$ " + currentBalance), btn ->
+                        Button.builder(Component.literal(balLabel), btn ->
                                 client.gui.setScreen(new EconomicsBoxScreen(EconomicsBoxScreen.Tab.SHOP))
                         ).bounds(balX, rowY, balWidth, btnHeight).build()
                 );
             });
 
-            AdvancedEconomicsCommon.LOGGER.info("Ready. Interactive inventory header widgets active.");
+            AdvancedEconomicsCommon.LOGGER.info("Ready. Dynamically sized profession header buttons active.");
 
         } catch (Throwable t) {
             AdvancedEconomicsCommon.LOGGER.error("[AE] Client init failed: {}", t.getMessage(), t);
