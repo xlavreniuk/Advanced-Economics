@@ -21,10 +21,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Advanced Economics Box Screen (v0.17).
+ * Advanced Economics Box Screen (v0.18).
  *
- * Fix: Explicit 32-bit ARGB alpha mask (0xFF) on all text color constants
- * ensuring item names, settings text, headers, and status labels render with 100% opacity.
+ * Fix: Complete Screen & EditBox focus restoration upon search query changes,
+ * maintaining cursor position and allowing smooth continuous typing without losing focus.
  */
 public class EconomicsBoxScreen extends Screen {
 
@@ -132,21 +132,23 @@ public class EconomicsBoxScreen extends Screen {
         int searchW = 165;
         int searchH = 16;
 
-        boolean wasFocused = (searchBox != null && searchBox.isFocused());
-
         searchBox = new EditBox(this.getFont(), searchX, searchY, searchW, searchH, Component.literal("Search"));
         searchBox.setHint(Component.literal("Search items..."));
         searchBox.setMaxLength(256);
         searchBox.setValue(this.searchQuery);
-        searchBox.setFocused(wasFocused);
 
         searchBox.setResponder(text -> {
             this.searchQuery = text;
             this.scrollOffset = 0;
-            boolean focusState = (this.searchBox != null && this.searchBox.isFocused());
+            boolean wasFocused = (this.searchBox != null && (this.searchBox.isFocused() || this.getFocused() == this.searchBox));
+            int pos = (this.searchBox != null) ? this.searchBox.getCursorPosition() : text.length();
+
             this.rebuildWidgets();
-            if (this.searchBox != null && focusState) {
+
+            if (this.searchBox != null && wasFocused) {
+                this.setFocused(this.searchBox);
                 this.searchBox.setFocused(true);
+                this.searchBox.setCursorPosition(pos);
             }
         });
 
@@ -449,13 +451,14 @@ public class EconomicsBoxScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
-        if (this.searchBox != null && this.searchBox.isFocused()) {
+        if (this.searchBox != null && (this.searchBox.isFocused() || this.getFocused() == this.searchBox)) {
             if (event.key() == 256) { // ESC unfocuses search box
                 this.searchBox.setFocused(false);
+                this.setFocused(null);
                 return true;
             }
-            // Consume ALL keypresses when search box is focused so typing 'N' NEVER closes screen!
-            super.keyPressed(event);
+            // Delegate keypress to searchBox while focused so typing 'N' or any key NEVER closes screen!
+            this.searchBox.keyPressed(event);
             return true;
         }
 
