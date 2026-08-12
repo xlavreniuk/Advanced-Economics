@@ -23,12 +23,11 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Advanced Economics Box Screen (v0.29).
+ * Advanced Economics Box Screen (v0.31).
  *
- * Enhancements:
- * - Prices formatted with $0.01 precision (e.g. $0.01, $0.25, $1.50, $500.00).
- * - Expanded main container box width to 315px for spacious row layout.
- * - Thinner 12x10 ▲ and ▼ scroll buttons flush with the scrollbar column.
+ * Tab Button Styling:
+ * - Selected tab button renders in default bright Minecraft button style.
+ * - Non-selected tab buttons render with a sleek dark background (0xFF141414) and 100% bright white text (0xFFFFFFFF).
  */
 public class EconomicsBoxScreen extends Screen {
 
@@ -354,7 +353,7 @@ public class EconomicsBoxScreen extends Screen {
         // Pass 4: Draw all interactive widgets & buttons on top!
         super.extractRenderState(graphics, mouseX, mouseY, delta);
 
-        // Pass 5: Draw dark tint overlay over non-selected tab buttons (selected tab looks normal)
+        // Pass 5: Render dark background & 100% bright white text for non-selected tab buttons
         int btnY = boxY - BTN_HEIGHT - BTN_MARGIN;
         int visualLeft = boxX - BORDER;
 
@@ -363,13 +362,19 @@ public class EconomicsBoxScreen extends Screen {
         int setX  = visualLeft + (BTN_WIDTH + BTN_GAP) * 2;
 
         if (activeTab != Tab.SHOP) {
-            graphics.fill(shopX, btnY, shopX + BTN_WIDTH, btnY + BTN_HEIGHT, 0x38000000);
+            graphics.fill(shopX, btnY, shopX + BTN_WIDTH, btnY + BTN_HEIGHT, 0xFF141414);
+            graphics.fill(shopX, btnY, shopX + BTN_WIDTH, btnY + 1, 0xFF3D3D3D);
+            graphics.centeredText(this.getFont(), Component.literal("Shop"), shopX + BTN_WIDTH / 2, btnY + 5, 0xFFFFFFFF);
         }
         if (activeTab != Tab.PROFESSION) {
-            graphics.fill(profX, btnY, profX + BTN_WIDTH, btnY + BTN_HEIGHT, 0x38000000);
+            graphics.fill(profX, btnY, profX + BTN_WIDTH, btnY + BTN_HEIGHT, 0xFF141414);
+            graphics.fill(profX, btnY, profX + BTN_WIDTH, btnY + 1, 0xFF3D3D3D);
+            graphics.centeredText(this.getFont(), Component.literal("Profession"), profX + BTN_WIDTH / 2, btnY + 5, 0xFFFFFFFF);
         }
         if (activeTab != Tab.SETTINGS) {
-            graphics.fill(setX, btnY, setX + BTN_WIDTH, btnY + BTN_HEIGHT, 0x38000000);
+            graphics.fill(setX, btnY, setX + BTN_WIDTH, btnY + BTN_HEIGHT, 0xFF141414);
+            graphics.fill(setX, btnY, setX + BTN_WIDTH, btnY + 1, 0xFF3D3D3D);
+            graphics.centeredText(this.getFont(), Component.literal("Settings"), setX + BTN_WIDTH / 2, btnY + 5, 0xFFFFFFFF);
         }
     }
 
