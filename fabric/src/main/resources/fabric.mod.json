@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "advanced_economics",
-  "version": "0.18",
+  "version": "0.19",
   "name": "Advanced Economics",
   "description": "A multi-loader economics mod built with UI Lib. Press 'N' to toggle centered UI Box.",
   "authors": [

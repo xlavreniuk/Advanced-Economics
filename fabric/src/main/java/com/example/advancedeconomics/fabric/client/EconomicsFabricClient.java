@@ -24,8 +24,11 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Fabric Client Mod Initializer for Advanced Economics (v0.10).
- * Handles network payloads and schedules updates onto main client thread.
+ * Fabric Client Mod Initializer for Advanced Economics (v0.19).
+ *
+ * Inventory Header Buttons (Right to Left):
+ * - [$ Balance]   -> opens Shop tab
+ * - [Profession]  -> opens Profession tab
  */
 public class EconomicsFabricClient implements ClientModInitializer {
 
@@ -52,7 +55,7 @@ public class EconomicsFabricClient implements ClientModInitializer {
     public void onInitializeClient() {
         try {
             AdvancedEconomicsCommon.LOGGER.info("=============================================");
-            AdvancedEconomicsCommon.LOGGER.info("Advanced Economics Fabric Client v0.10");
+            AdvancedEconomicsCommon.LOGGER.info("Advanced Economics Fabric Client v0.19");
             AdvancedEconomicsCommon.LOGGER.info("=============================================");
 
             // 1. Register Client Receivers (Thread-safe execution on client thread)
@@ -117,7 +120,7 @@ public class EconomicsFabricClient implements ClientModInitializer {
                 }
             });
 
-            // 3. Inject Inventory Header Widgets
+            // 3. Inject Inventory Header Widgets: [Profession] [$ Balance]
             ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
                 if (!(screen instanceof InventoryScreen inv)) return;
 
@@ -135,42 +138,36 @@ public class EconomicsFabricClient implements ClientModInitializer {
                 }
 
                 int btnHeight  = 14;
-                int ecoWidth   = 56;
-                int balWidth   = 46;
-                int profWidth  = 72;
-                int gap        = 2;
+                int balWidth   = 52;
+                int profWidth  = 80;
+                int gap        = 3;
                 int rowY       = topPos - btnHeight - 2;
 
-                int ecoX = leftPos + imageWidth - ecoWidth;
-                int balX = ecoX - gap - balWidth;
+                // [$ Balance] button aligned to right side of inventory header
+                int balX = leftPos + imageWidth - balWidth;
+
+                // [Profession] button placed to the left of [$ Balance]
                 int profX = balX - gap - profWidth;
 
                 long currentBalance = ClientEconomyState.getBalance();
                 String profession = ClientEconomyState.getProfession();
 
-                // Profession Button
+                // Profession Button -> Opens Profession Tab
                 Screens.getWidgets(screen).add(
                         Button.builder(Component.literal(profession), btn ->
                                 client.gui.setScreen(new EconomicsBoxScreen(EconomicsBoxScreen.Tab.PROFESSION))
                         ).bounds(profX, rowY, profWidth, btnHeight).build()
                 );
 
-                // Money Balance Button (Green text)
+                // Money Balance Button -> Opens Shop Tab
                 Screens.getWidgets(screen).add(
                         Button.builder(Component.literal("§a$ " + currentBalance), btn ->
                                 client.gui.setScreen(new EconomicsBoxScreen(EconomicsBoxScreen.Tab.SHOP))
                         ).bounds(balX, rowY, balWidth, btnHeight).build()
                 );
-
-                // Economics Button
-                Screens.getWidgets(screen).add(
-                        Button.builder(Component.literal("Economics"), btn ->
-                                client.gui.setScreen(new EconomicsBoxScreen(EconomicsBoxScreen.Tab.SHOP))
-                        ).bounds(ecoX, rowY, ecoWidth, btnHeight).build()
-                );
             });
 
-            AdvancedEconomicsCommon.LOGGER.info("Ready. Thread-safe client network synchronization active.");
+            AdvancedEconomicsCommon.LOGGER.info("Ready. Clean inventory header widgets active (Profession & Balance).");
 
         } catch (Throwable t) {
             AdvancedEconomicsCommon.LOGGER.error("[AE] Client init failed: {}", t.getMessage(), t);
