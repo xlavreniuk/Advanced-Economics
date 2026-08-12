@@ -52,6 +52,16 @@ public class EconomicsBoxScreen extends Screen {
     private int settingsScrollOffset = 0;
     private boolean isDraggingScrollbar = false;
 
+    // Sort mode cycles on each button press
+    public enum SortMode {
+        NAME_AZ,    // A → Z
+        NAME_ZA,    // Z → A
+        PRICE_LOW,  // $ low → high
+        PRICE_HIGH  // $ high → low
+    }
+
+    private SortMode sortMode = SortMode.NAME_AZ;
+
     private EditBox searchBox;
     private String searchQuery = "";
 
@@ -75,23 +85,33 @@ public class EconomicsBoxScreen extends Screen {
     private List<ShopItem> getSortedShopItems() {
         List<ShopItem> all = ShopTable.getItems();
         List<ShopItem> unlocked = new ArrayList<>();
-        List<ShopItem> locked = new ArrayList<>();
+        List<ShopItem> locked   = new ArrayList<>();
 
         String query = (searchQuery != null) ? searchQuery.trim().toLowerCase() : "";
 
         for (ShopItem item : all) {
             if (!query.isEmpty()) {
                 boolean matchesName = item.displayName().toLowerCase().contains(query);
-                boolean matchesId = item.id().toLowerCase().contains(query);
+                boolean matchesId   = item.id().toLowerCase().contains(query);
                 if (!matchesName && !matchesId) continue;
             }
-
             if (ClientEconomyState.isUnlocked(item.id())) {
                 unlocked.add(item);
             } else {
                 locked.add(item);
             }
         }
+
+        // Apply sort within each group, then concat
+        java.util.Comparator<ShopItem> cmp = switch (sortMode) {
+            case NAME_AZ   -> java.util.Comparator.comparing(ShopItem::displayName, String.CASE_INSENSITIVE_ORDER);
+            case NAME_ZA   -> java.util.Comparator.comparing(ShopItem::displayName, String.CASE_INSENSITIVE_ORDER).reversed();
+            case PRICE_LOW -> java.util.Comparator.comparingDouble(ShopItem::basePrice);
+            case PRICE_HIGH-> java.util.Comparator.comparingDouble(ShopItem::basePrice).reversed();
+        };
+        unlocked.sort(cmp);
+        locked.sort(cmp);
+
         unlocked.addAll(locked);
         return unlocked;
     }
@@ -172,6 +192,23 @@ public class EconomicsBoxScreen extends Screen {
 
         addRenderableWidget(searchBox);
 
+        // Sort cycle button — icon only, cycles NAME_AZ → NAME_ZA → PRICE_LOW → PRICE_HIGH
+        String sortIcon = switch (sortMode) {
+            case NAME_AZ    -> "A-Z";
+            case NAME_ZA    -> "Z-A";
+            case PRICE_LOW  -> "$+";
+            case PRICE_HIGH -> "$-";
+        };
+        addRenderableWidget(Button.builder(Component.literal(sortIcon), btn -> {
+            sortMode = switch (sortMode) {
+                case NAME_AZ    -> SortMode.NAME_ZA;
+                case NAME_ZA    -> SortMode.PRICE_LOW;
+                case PRICE_LOW  -> SortMode.PRICE_HIGH;
+                case PRICE_HIGH -> SortMode.NAME_AZ;
+            };
+            scrollOffset = 0;
+            rebuildWidgets();
+        }).bounds(boxX + 185, boxY + 4, 22, 16).build());
         List<ShopItem> sortedItems = getSortedShopItems();
         int maxOffset = Math.max(0, sortedItems.size() - 4);
         scrollOffset = Math.clamp(scrollOffset, 0, maxOffset);
