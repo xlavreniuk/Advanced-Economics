@@ -22,12 +22,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Advanced Economics Box Screen (v0.26).
+ * Advanced Economics Box Screen (v0.27).
  *
- * Enhancements:
- * - Active tab button highlighted with a golden outline.
- * - Small ▲ (Up) and ▼ (Down) scroll buttons added to both Shop and Profession scrollable views.
- * - Cleaned up profession descriptions (removed (+2%/lvl) text).
+ * Tab Button Styling:
+ * - Selected tab button looks 100% normal and bright.
+ * - Non-selected tab buttons render with a darkish/dimmed overlay (0x90000000).
  */
 public class EconomicsBoxScreen extends Screen {
 
@@ -311,18 +310,6 @@ public class EconomicsBoxScreen extends Screen {
 
         int boxX = (this.width  - BOX_WIDTH)  / 2;
         int boxY = (this.height - BOX_HEIGHT) / 2;
-        int btnY = boxY - BTN_HEIGHT - BTN_MARGIN;
-        int visualLeft = boxX - BORDER;
-
-        // Highlight active tab button with golden outline
-        int tabX = (activeTab == Tab.SHOP) ? visualLeft :
-                   (activeTab == Tab.PROFESSION) ? visualLeft + BTN_WIDTH + BTN_GAP :
-                   visualLeft + (BTN_WIDTH + BTN_GAP) * 2;
-
-        graphics.fill(tabX - 1, btnY - 1, tabX + BTN_WIDTH + 1, btnY, 0xFFFFDD55);
-        graphics.fill(tabX - 1, btnY + BTN_HEIGHT, tabX + BTN_WIDTH + 1, btnY + BTN_HEIGHT + 1, 0xFFFFDD55);
-        graphics.fill(tabX - 1, btnY, tabX, btnY + BTN_HEIGHT, 0xFFFFDD55);
-        graphics.fill(tabX + BTN_WIDTH, btnY, tabX + BTN_WIDTH + 1, btnY + BTN_HEIGHT, 0xFFFFDD55);
 
         // Pass 2: Outer container frame & dark box
         graphics.fill(boxX - BORDER, boxY - BORDER,
@@ -349,6 +336,24 @@ public class EconomicsBoxScreen extends Screen {
 
         // Pass 4: Draw all interactive widgets & buttons on top!
         super.extractRenderState(graphics, mouseX, mouseY, delta);
+
+        // Pass 5: Draw dark tint overlay over non-selected tab buttons (selected tab looks normal)
+        int btnY = boxY - BTN_HEIGHT - BTN_MARGIN;
+        int visualLeft = boxX - BORDER;
+
+        int shopX = visualLeft;
+        int profX = visualLeft + BTN_WIDTH + BTN_GAP;
+        int setX  = visualLeft + (BTN_WIDTH + BTN_GAP) * 2;
+
+        if (activeTab != Tab.SHOP) {
+            graphics.fill(shopX, btnY, shopX + BTN_WIDTH, btnY + BTN_HEIGHT, 0x90000000);
+        }
+        if (activeTab != Tab.PROFESSION) {
+            graphics.fill(profX, btnY, profX + BTN_WIDTH, btnY + BTN_HEIGHT, 0x90000000);
+        }
+        if (activeTab != Tab.SETTINGS) {
+            graphics.fill(setX, btnY, setX + BTN_WIDTH, btnY + BTN_HEIGHT, 0x90000000);
+        }
     }
 
     private void renderMoneyBalanceBox(GuiGraphicsExtractor graphics, int x, int y, int width, int height) {
