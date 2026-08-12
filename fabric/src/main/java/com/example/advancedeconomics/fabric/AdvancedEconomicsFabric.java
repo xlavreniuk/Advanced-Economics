@@ -3,6 +3,7 @@ package com.example.advancedeconomics.fabric;
 import com.example.advancedeconomics.AdvancedEconomicsCommon;
 import com.example.advancedeconomics.economy.EconomyManager;
 import com.example.advancedeconomics.fabric.network.*;
+import com.example.advancedeconomics.profession.Profession;
 import com.example.advancedeconomics.profession.ProfessionManager;
 import com.example.advancedeconomics.shop.PlayerUnlockManager;
 import com.example.advancedeconomics.shop.ShopItem;
@@ -25,8 +26,8 @@ import java.io.File;
 import java.util.Set;
 
 /**
- * Main Fabric Initializer (v0.10).
- * Reliable auto-unlock inventory scanning & live network state synchronization.
+ * Main Fabric Initializer (v0.23).
+ * Full profession system with selection, leveling, XP progression, and level-based sell bonuses.
  */
 public class AdvancedEconomicsFabric implements ModInitializer {
 
@@ -47,6 +48,7 @@ public class AdvancedEconomicsFabric implements ModInitializer {
         PayloadTypeRegistry.serverboundPlay().register(RequestBuyPayload.TYPE, RequestBuyPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RequestSellPayload.TYPE, RequestSellPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RequestUpdateSettingsPayload.TYPE, RequestUpdateSettingsPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(RequestSetProfessionPayload.TYPE, RequestSetProfessionPayload.CODEC);
 
         // 3. World Lifecycle Events
         ServerLifecycleEvents.SERVER_STARTING.register(server -> {
@@ -84,6 +86,15 @@ public class AdvancedEconomicsFabric implements ModInitializer {
         });
 
         // 5. Serverbound Packet Handlers
+        ServerPlayNetworking.registerGlobalReceiver(RequestSetProfessionPayload.TYPE, (payload, context) -> {
+            ServerPlayer player = context.player();
+            if (player != null) {
+                Profession prof = Profession.fromId(payload.professionId());
+                ProfessionManager.setProfession(player.getUUID(), prof);
+                syncPlayerState(player);
+            }
+        });
+
         ServerPlayNetworking.registerGlobalReceiver(RequestUnlockPayload.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();
             ShopItem item = ShopTable.findById(payload.itemId());
@@ -123,8 +134,16 @@ public class AdvancedEconomicsFabric implements ModInitializer {
                         ItemStack stack = player.getInventory().getItem(i);
                         if (!stack.isEmpty() && stack.is(mcItem)) {
                             stack.shrink(1);
-                            long payout = ShopSettings.calculateSellPrice(shopItem.basePrice());
-                            EconomyManager.deposit(player.getUUID(), payout);
+
+                            // Base sell price x multiplier x profession level bonus ratio (+5% / lvl)
+                            long basePayout = ShopSettings.calculateSellPrice(shopItem.basePrice());
+                            double bonusRatio = ProfessionManager.getProfessionSellBonusRatio(player.getUUID(), shopItem.id());
+                            long finalPayout = Math.max(1, Math.round(basePayout * bonusRatio));
+
+                            // Grant Profession XP when selling matching items!
+                            ProfessionManager.addXp(player.getUUID(), 10L * Math.max(1, shopItem.basePrice()));
+
+                            EconomyManager.deposit(player.getUUID(), finalPayout);
                             syncPlayerState(player);
                             break;
                         }
@@ -165,9 +184,6 @@ public class AdvancedEconomicsFabric implements ModInitializer {
         AdvancedEconomicsCommon.LOGGER.info("Advanced Economics Fabric fully initialized.");
     }
 
-    /**
-     * Scans player inventory against ShopTable items and unlocks any item currently held.
-     */
     private boolean scanAndUnlockInventory(ServerPlayer player) {
         if (player == null) return false;
         boolean newlyUnlocked = false;
@@ -189,13 +205,20 @@ public class AdvancedEconomicsFabric implements ModInitializer {
     public static void syncPlayerState(ServerPlayer player) {
         if (player == null) return;
         long balance = EconomyManager.getBalance(player.getUUID());
-        String profession = ProfessionManager.getProfession(player.getUUID()).getDisplayName();
+
+        ProfessionManager.PlayerProfessionState profState = ProfessionManager.getPlayerState(player.getUUID());
+        Profession prof = Profession.fromId(profState.profession);
 
         Set<String> unlocks = PlayerUnlockManager.getUnlockedItems(player.getUUID());
         String unlocksStr = String.join(",", unlocks);
 
         ServerPlayNetworking.send(player, new SyncBalancePayload(balance));
-        ServerPlayNetworking.send(player, new SyncProfessionPayload(profession));
+        ServerPlayNetworking.send(player, new SyncProfessionPayload(
+                prof.getDisplayName(),
+                profState.level,
+                profState.xp,
+                profState.getMaxXp()
+        ));
         ServerPlayNetworking.send(player, new SyncSettingsPayload(
                 ShopSettings.getSellMultiplier(),
                 ShopSettings.getBuyMultiplier(),

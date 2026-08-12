@@ -1,6 +1,7 @@
 package com.example.advancedeconomics.fabric.client;
 
 import com.example.advancedeconomics.fabric.network.*;
+import com.example.advancedeconomics.profession.Profession;
 import com.example.advancedeconomics.shop.ShopItem;
 import com.example.advancedeconomics.shop.ShopTable;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -21,12 +22,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Advanced Economics Box Screen (v0.20).
+ * Advanced Economics Box Screen (v0.23).
  *
- * Layout Adjustment:
- * - BOX_HEIGHT = 171px.
- * - 4 shop rows fill 144px (36px per row) flush from boxY + 24 to boxY + 168.
- * - Completely eliminated black empty gap at the bottom of the container.
+ * Full Profession Tab Features:
+ * - Top header displaying active profession name, Level, and XP progress bar (XP bar style).
+ * - Selectable profession list (Lumberjack, Miner, Farmer, Hunter, Weaponsmith).
+ * - Interactive [Select] buttons to choose/change career path.
+ * - Sell price multiplier bonuses based on profession level.
  */
 public class EconomicsBoxScreen extends Screen {
 
@@ -47,6 +49,7 @@ public class EconomicsBoxScreen extends Screen {
 
     private Tab activeTab = Tab.SHOP;
     private int scrollOffset = 0;
+    private int professionScrollOffset = 0;
     private boolean isDraggingScrollbar = false;
 
     private EditBox searchBox;
@@ -125,6 +128,8 @@ public class EconomicsBoxScreen extends Screen {
             buildShopTabWidgets(boxX, boxY);
         } else if (activeTab == Tab.SETTINGS) {
             buildSettingsTabWidgets(boxX, boxY);
+        } else if (activeTab == Tab.PROFESSION) {
+            buildProfessionTabWidgets(boxX, boxY);
         }
     }
 
@@ -173,7 +178,6 @@ public class EconomicsBoxScreen extends Screen {
             long buyPrice    = shopItem.basePrice() * ClientEconomyState.getBuyMultiplier();
             long unlockPrice = shopItem.basePrice() * ClientEconomyState.getUnlockMultiplier();
 
-            // Check if player has item in inventory to sell
             boolean hasItemInInventory = false;
             if (this.minecraft != null && this.minecraft.player != null) {
                 Item mcItem = BuiltInRegistries.ITEM.getValue(Identifier.fromNamespaceAndPath("minecraft", shopItem.id()));
@@ -183,22 +187,45 @@ public class EconomicsBoxScreen extends Screen {
             }
 
             if (isUnlocked) {
-                // [Sell $X] button
                 Button sellBtn = Button.builder(Component.literal("Sell $" + sellPrice), btn -> {
                     ClientPlayNetworking.send(new RequestSellPayload(shopItem.id()));
                 }).bounds(boxX + 144, rowY + 8, 58, 18).build();
                 sellBtn.active = hasItemInInventory;
                 addRenderableWidget(sellBtn);
 
-                // [Buy $X] button
                 addRenderableWidget(Button.builder(Component.literal("Buy $" + buyPrice), btn -> {
                     ClientPlayNetworking.send(new RequestBuyPayload(shopItem.id()));
                 }).bounds(boxX + 206, rowY + 8, 62, 18).build());
             } else {
-                // [Unlock $X] button
                 addRenderableWidget(Button.builder(Component.literal("Unlock $" + unlockPrice), btn -> {
                     ClientPlayNetworking.send(new RequestUnlockPayload(shopItem.id()));
                 }).bounds(boxX + 196, rowY + 8, 72, 18).build());
+            }
+        }
+    }
+
+    private void buildProfessionTabWidgets(int boxX, int boxY) {
+        Profession[] selectable = new Profession[]{
+                Profession.LUMBERJACK, Profession.MINER, Profession.FARMER, Profession.HUNTER, Profession.WEAPONSMITH
+        };
+
+        int startY = boxY + 62;
+        int rowHeight = 34;
+
+        String currentProfName = ClientEconomyState.getProfession();
+
+        for (int i = 0; i < selectable.length; i++) {
+            final Profession prof = selectable[i];
+            int rowY = startY + (i * rowHeight);
+
+            boolean isCurrent = currentProfName.equalsIgnoreCase(prof.getDisplayName()) || currentProfName.equalsIgnoreCase(prof.name());
+
+            if (!isCurrent) {
+                addRenderableWidget(Button.builder(Component.literal("Select"), btn -> {
+                    ClientPlayNetworking.send(new RequestSetProfessionPayload(prof.name()));
+                    ClientEconomyState.setProfession(prof.getDisplayName());
+                    rebuildWidgets();
+                }).bounds(boxX + 215, rowY + 6, 60, 18).build());
             }
         }
     }
@@ -214,7 +241,6 @@ public class EconomicsBoxScreen extends Screen {
         int r2 = r1 + 28;
         int r3 = r2 + 28;
 
-        // Sell Multiplier [-] [+]
         addRenderableWidget(Button.builder(Component.literal("-"), btn -> {
             sendUpdateSettings(Math.max(1, sellM - 1), buyM, unlockM);
         }).bounds(boxX + 210, r1 - 2, 22, 18).build());
@@ -223,7 +249,6 @@ public class EconomicsBoxScreen extends Screen {
             sendUpdateSettings(sellM + 1, buyM, unlockM);
         }).bounds(boxX + 237, r1 - 2, 22, 18).build());
 
-        // Buy Multiplier [-] [+]
         addRenderableWidget(Button.builder(Component.literal("-"), btn -> {
             sendUpdateSettings(sellM, Math.max(1, buyM - 1), unlockM);
         }).bounds(boxX + 210, r2 - 2, 22, 18).build());
@@ -232,7 +257,6 @@ public class EconomicsBoxScreen extends Screen {
             sendUpdateSettings(sellM, buyM + 1, unlockM);
         }).bounds(boxX + 237, r2 - 2, 22, 18).build());
 
-        // Unlock Multiplier [-] [+]
         addRenderableWidget(Button.builder(Component.literal("-"), btn -> {
             sendUpdateSettings(sellM, buyM, Math.max(1, unlockM - 1));
         }).bounds(boxX + 210, r3 - 2, 22, 18).build());
@@ -273,7 +297,7 @@ public class EconomicsBoxScreen extends Screen {
             graphics.fill(boxX + 6, boxY + 18, boxX + BOX_WIDTH - 6, boxY + 19, 0xFF444444);
             renderSettingsTab(graphics, boxX, boxY);
         } else if (activeTab == Tab.PROFESSION) {
-            String tabTitle = "Professions & Careers";
+            String tabTitle = "Career Path & Professions";
             graphics.centeredText(this.getFont(), Component.literal(tabTitle), this.width / 2, boxY + 6, 0xFFFFDD55);
             graphics.fill(boxX + 6, boxY + 18, boxX + BOX_WIDTH - 6, boxY + 19, 0xFF444444);
             renderProfessionTab(graphics, boxX, boxY);
@@ -303,22 +327,18 @@ public class EconomicsBoxScreen extends Screen {
             int rowY = startY + (i * rowHeight);
             boolean isUnlocked = ClientEconomyState.isUnlocked(shopItem.id());
 
-            // Row background tint (extends to rowY + 35)
             int bgTint = isUnlocked ? 0xFF181818 : 0xFF101010;
             graphics.fill(boxX + 6, rowY + 1, boxX + BOX_WIDTH - 14, rowY + rowHeight - 1, bgTint);
             graphics.fill(boxX + 6, rowY + rowHeight - 1, boxX + BOX_WIDTH - 14, rowY + rowHeight, 0xFF282828);
 
-            // Item Icon
             Item mcItem = BuiltInRegistries.ITEM.getValue(Identifier.fromNamespaceAndPath("minecraft", shopItem.id()));
             if (mcItem != null && mcItem != Items.AIR) {
                 graphics.item(new ItemStack(mcItem), boxX + 8, rowY + 9);
             }
 
-            // Unlocked = Bright White (0xFFFFFFFF); Locked = Dimmed Grey (0xFF777777)
             int nameColor = isUnlocked ? 0xFFFFFFFF : 0xFF777777;
             graphics.text(this.getFont(), Component.literal(shopItem.displayName()), boxX + 28, rowY + 7, nameColor, true);
 
-            // Status indicator
             String statusStr = isUnlocked ? "§a✔ Unlocked" : "§7🔒 Locked";
             graphics.text(this.getFont(), Component.literal(statusStr), boxX + 28, rowY + 19, 0xFFAAAAAA, true);
         }
@@ -372,8 +392,69 @@ public class EconomicsBoxScreen extends Screen {
 
     private void renderProfessionTab(GuiGraphicsExtractor graphics, int boxX, int boxY) {
         String profession = ClientEconomyState.getProfession();
-        graphics.centeredText(this.getFont(), Component.literal("Current Profession: " + profession), this.width / 2, boxY + 45, 0xFFFFFFFF);
-        graphics.centeredText(this.getFont(), Component.literal("Select a career path to unlock economic perks."), this.width / 2, boxY + 70, 0xFFAAAAAA);
+        int level = ClientEconomyState.getLevel();
+        long xp = ClientEconomyState.getXp();
+        long maxXp = ClientEconomyState.getMaxXp();
+
+        // 1. Top Header: Active Profession & Level
+        String headerStr = "Active: §e" + profession + " §7(Level " + level + ")";
+        graphics.text(this.getFont(), Component.literal(headerStr), boxX + 12, boxY + 24, 0xFFFFFFFF, true);
+
+        // Bonus info
+        int bonusPct = level * 5;
+        graphics.text(this.getFont(), Component.literal("§a+" + bonusPct + "% Sell Price Bonus"), boxX + 185, boxY + 24, 0xFF55FF55, true);
+
+        // 2. Minecraft XP Bar Style Progress Bar
+        int barX = boxX + 12;
+        int barY = boxY + 38;
+        int barW = 271;
+        int barH = 14;
+
+        // XP Bar frame & dark background
+        graphics.fill(barX - 1, barY - 1, barX + barW + 1, barY + barH + 1, 0xFF444444);
+        graphics.fill(barX, barY, barX + barW, barY + barH, 0xFF0A1A0A);
+
+        // XP Fill
+        double ratio = Math.clamp((double) xp / (double) Math.max(1, maxXp), 0.0, 1.0);
+        int fillW = (int) Math.round(barW * ratio);
+        if (fillW > 0) {
+            graphics.fill(barX, barY, barX + fillW, barY + barH, 0xFF22AA22);
+            graphics.fill(barX, barY, barX + fillW, barY + 3, 0xFF55FF55); // Top highlight
+        }
+
+        // XP Text overlay
+        String xpStr = "XP: " + xp + " / " + maxXp;
+        graphics.centeredText(this.getFont(), Component.literal(xpStr), this.width / 2, barY + 3, 0xFFFFFFFF);
+
+        // 3. Selectable Profession List
+        Profession[] selectable = new Profession[]{
+                Profession.LUMBERJACK, Profession.MINER, Profession.FARMER, Profession.HUNTER, Profession.WEAPONSMITH
+        };
+
+        int startY = boxY + 62;
+        int rowHeight = 34;
+
+        for (int i = 0; i < selectable.length; i++) {
+            Profession prof = selectable[i];
+            int rowY = startY + (i * rowHeight);
+
+            boolean isCurrent = profession.equalsIgnoreCase(prof.getDisplayName()) || profession.equalsIgnoreCase(prof.name());
+
+            int bgTint = isCurrent ? 0xFF1E2E1E : 0xFF141414;
+            graphics.fill(boxX + 12, rowY + 2, boxX + 283, rowY + rowHeight - 2, bgTint);
+            graphics.fill(boxX + 12, rowY + rowHeight - 2, boxX + 283, rowY + rowHeight - 1, 0xFF2A2A2A);
+
+            // Profession Name
+            int nameColor = isCurrent ? 0xFF55FF55 : 0xFFFFFFFF;
+            graphics.text(this.getFont(), Component.literal(prof.getDisplayName()), boxX + 18, rowY + 5, nameColor, true);
+
+            // Profession description
+            graphics.text(this.getFont(), Component.literal("§7" + prof.getDescription()), boxX + 18, rowY + 17, 0xFFAAAAAA, true);
+
+            if (isCurrent) {
+                graphics.text(this.getFont(), Component.literal("§a✔ Active"), boxX + 225, rowY + 10, 0xFF55FF55, true);
+            }
+        }
     }
 
     @Override
@@ -459,7 +540,6 @@ public class EconomicsBoxScreen extends Screen {
                 this.setFocused(null);
                 return true;
             }
-            // Delegate keypress to searchBox while focused so typing 'N' or any key NEVER closes screen!
             this.searchBox.keyPressed(event);
             return true;
         }

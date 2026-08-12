@@ -24,11 +24,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Fabric Client Mod Initializer for Advanced Economics (v0.19).
- *
- * Inventory Header Buttons (Right to Left):
- * - [$ Balance]   -> opens Shop tab
- * - [Profession]  -> opens Profession tab
+ * Fabric Client Mod Initializer for Advanced Economics (v0.23).
+ * Receives sync payloads for balance, profession level, XP, multipliers, and unlocks.
  */
 public class EconomicsFabricClient implements ClientModInitializer {
 
@@ -55,7 +52,7 @@ public class EconomicsFabricClient implements ClientModInitializer {
     public void onInitializeClient() {
         try {
             AdvancedEconomicsCommon.LOGGER.info("=============================================");
-            AdvancedEconomicsCommon.LOGGER.info("Advanced Economics Fabric Client v0.19");
+            AdvancedEconomicsCommon.LOGGER.info("Advanced Economics Fabric Client v0.23");
             AdvancedEconomicsCommon.LOGGER.info("=============================================");
 
             // 1. Register Client Receivers (Thread-safe execution on client thread)
@@ -69,8 +66,11 @@ public class EconomicsFabricClient implements ClientModInitializer {
 
             ClientPlayNetworking.registerGlobalReceiver(SyncProfessionPayload.TYPE, (payload, context) -> {
                 String profession = payload.profession();
+                int level = payload.level();
+                long xp = payload.xp();
+                long maxXp = payload.maxXp();
                 context.client().execute(() -> {
-                    ClientEconomyState.setProfession(profession);
+                    ClientEconomyState.setProfessionData(profession, level, xp, maxXp);
                     refreshCurrentScreen(context.client());
                 });
             });
@@ -143,18 +143,17 @@ public class EconomicsFabricClient implements ClientModInitializer {
                 int gap        = 3;
                 int rowY       = topPos - btnHeight - 2;
 
-                // [$ Balance] button aligned to right side of inventory header
                 int balX = leftPos + imageWidth - balWidth;
-
-                // [Profession] button placed to the left of [$ Balance]
                 int profX = balX - gap - profWidth;
 
                 long currentBalance = ClientEconomyState.getBalance();
                 String profession = ClientEconomyState.getProfession();
+                int level = ClientEconomyState.getLevel();
 
-                // Profession Button -> Opens Profession Tab
+                // Profession Button -> Shows Profession & Level (e.g. "Farmer Lvl 2")
+                String profLabel = profession.equalsIgnoreCase("Unemployed") ? "No Profession" : (profession + " Lvl " + level);
                 Screens.getWidgets(screen).add(
-                        Button.builder(Component.literal(profession), btn ->
+                        Button.builder(Component.literal(profLabel), btn ->
                                 client.gui.setScreen(new EconomicsBoxScreen(EconomicsBoxScreen.Tab.PROFESSION))
                         ).bounds(profX, rowY, profWidth, btnHeight).build()
                 );
@@ -167,7 +166,7 @@ public class EconomicsFabricClient implements ClientModInitializer {
                 );
             });
 
-            AdvancedEconomicsCommon.LOGGER.info("Ready. Clean inventory header widgets active (Profession & Balance).");
+            AdvancedEconomicsCommon.LOGGER.info("Ready. Interactive inventory header widgets active.");
 
         } catch (Throwable t) {
             AdvancedEconomicsCommon.LOGGER.error("[AE] Client init failed: {}", t.getMessage(), t);
