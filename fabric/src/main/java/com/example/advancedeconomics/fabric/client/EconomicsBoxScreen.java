@@ -21,12 +21,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Advanced Economics Box Screen (v0.12).
+ * Advanced Economics Box Screen (v0.13).
  *
- * Shop Tab Layout Refinement:
- * - Search bar on left top (boxY + 5) & Money balance box on right top (boxY + 5), cleanly occupying the top header space.
- * - Removed grey separator line and redundant header title in Shop tab.
- * - Item list viewport starts flush right below search bar at boxY + 24.
+ * Layout & Interaction Improvements:
+ * - Search bar allows long queries (maxLength = 256).
+ * - Keypresses while focused on search consume all keys so typing 'N' NEVER closes the screen.
+ * - Slim 6px web scrollbar removes wasted space on the right and maximizes item row width.
  */
 public class EconomicsBoxScreen extends Screen {
 
@@ -135,11 +135,12 @@ public class EconomicsBoxScreen extends Screen {
         // Search Box placed cleanly at top left (boxY + 5)
         int searchX = boxX + 6;
         int searchY = boxY + 5;
-        int searchW = 155;
+        int searchW = 165;
         int searchH = 16;
 
         searchBox = new EditBox(this.getFont(), searchX, searchY, searchW, searchH, Component.literal("Search"));
         searchBox.setHint(Component.literal("Search items..."));
+        searchBox.setMaxLength(256); // Allow typing long search text
         searchBox.setValue(this.searchQuery);
         searchBox.setResponder(text -> {
             this.searchQuery = text;
@@ -169,16 +170,16 @@ public class EconomicsBoxScreen extends Screen {
                 // UNLOCKED: BOTH [Sell $X] and [Buy $X] buttons appear
                 addRenderableWidget(Button.builder(Component.literal("Sell $" + sellPrice), btn -> {
                     ClientPlayNetworking.send(new RequestSellPayload(shopItem.id()));
-                }).bounds(boxX + 132, rowY + 6, 56, 18).build());
+                }).bounds(boxX + 144, rowY + 6, 58, 18).build());
 
                 addRenderableWidget(Button.builder(Component.literal("Buy $" + buyPrice), btn -> {
                     ClientPlayNetworking.send(new RequestBuyPayload(shopItem.id()));
-                }).bounds(boxX + 192, rowY + 6, 58, 18).build());
+                }).bounds(boxX + 206, rowY + 6, 62, 18).build());
             } else {
                 // LOCKED: ONLY [Unlock $X] button is visible
                 addRenderableWidget(Button.builder(Component.literal("Unlock $" + unlockPrice), btn -> {
                     ClientPlayNetworking.send(new RequestUnlockPayload(shopItem.id()));
-                }).bounds(boxX + 176, rowY + 6, 74, 18).build());
+                }).bounds(boxX + 196, rowY + 6, 72, 18).build());
             }
         }
     }
@@ -236,10 +237,10 @@ public class EconomicsBoxScreen extends Screen {
 
         if (activeTab == Tab.SHOP) {
             // Render Money Balance Box on Top Right (Green text on Black BG)
-            renderMoneyBalanceBox(graphics, boxX + BOX_WIDTH - 118, boxY + 5, 95, 16);
+            renderMoneyBalanceBox(graphics, boxX + BOX_WIDTH - 114, boxY + 5, 108, 16);
 
-            // Draw inner scroll container viewport starting cleanly at boxY + 24
-            graphics.fill(boxX + 5, boxY + 24, boxX + BOX_WIDTH - 20, boxY + BOX_HEIGHT - 6, 0xFF0A0A0A);
+            // Draw inner scroll container viewport extending to max right width
+            graphics.fill(boxX + 5, boxY + 24, boxX + BOX_WIDTH - 12, boxY + BOX_HEIGHT - 6, 0xFF0A0A0A);
             renderShopRows(graphics, boxX, boxY);
             renderDraggableScrollbar(graphics, boxX, boxY);
         } else {
@@ -258,9 +259,6 @@ public class EconomicsBoxScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, delta);
     }
 
-    /**
-     * Unified Money Balance Display: Green text on Black background.
-     */
     private void renderMoneyBalanceBox(GuiGraphicsExtractor graphics, int x, int y, int width, int height) {
         graphics.fill(x - 1, y - 1, x + width + 1, y + height + 1, 0xFF444444);
         graphics.fill(x, y, x + width, y + height, 0xFF000000);
@@ -281,10 +279,10 @@ public class EconomicsBoxScreen extends Screen {
             int rowY = startY + (i * rowHeight);
             boolean isUnlocked = ClientEconomyState.isUnlocked(shopItem.id());
 
-            // Tint
+            // Extended row background tint (extends to boxX + BOX_WIDTH - 14)
             int bgTint = isUnlocked ? 0xFF181818 : 0xFF101010;
-            graphics.fill(boxX + 6, rowY + 1, boxX + BOX_WIDTH - 22, rowY + rowHeight - 2, bgTint);
-            graphics.fill(boxX + 6, rowY + rowHeight - 2, boxX + BOX_WIDTH - 22, rowY + rowHeight - 1, 0xFF282828);
+            graphics.fill(boxX + 6, rowY + 1, boxX + BOX_WIDTH - 14, rowY + rowHeight - 2, bgTint);
+            graphics.fill(boxX + 6, rowY + rowHeight - 2, boxX + BOX_WIDTH - 14, rowY + rowHeight - 1, 0xFF282828);
 
             // Item Icon
             Item mcItem = BuiltInRegistries.ITEM.getValue(Identifier.fromNamespaceAndPath("minecraft", shopItem.id()));
@@ -302,29 +300,31 @@ public class EconomicsBoxScreen extends Screen {
         }
     }
 
+    /**
+     * Sleek 6px Slim Web-Style Draggable Scrollbar Track & Thumb.
+     */
     private void renderDraggableScrollbar(GuiGraphicsExtractor graphics, int boxX, int boxY) {
         List<ShopItem> sortedItems = getSortedShopItems();
         int totalItems = sortedItems.size();
         int maxOffset = Math.max(0, totalItems - 4);
         if (maxOffset <= 0) return;
 
-        int trackX = boxX + BOX_WIDTH - 18;
-        int trackY = boxY + 24;
-        int trackW = 12;
-        int trackH = BOX_HEIGHT - 30;
+        int trackX = boxX + BOX_WIDTH - 11;
+        int trackY = boxY + 25;
+        int trackW = 6;
+        int trackH = BOX_HEIGHT - 32;
 
-        // Background track
+        // Slim background track
         graphics.fill(trackX, trackY, trackX + trackW, trackY + trackH, 0xFF151515);
 
         // Thumb height & position
-        int thumbH = Math.max(20, (trackH * 4) / Math.max(1, totalItems));
+        int thumbH = Math.max(18, (trackH * 4) / Math.max(1, totalItems));
         int thumbY = trackY + ((trackH - thumbH) * scrollOffset) / maxOffset;
 
-        int thumbColor = isDraggingScrollbar ? 0xFF999999 : 0xFF555555;
+        int thumbColor = isDraggingScrollbar ? 0xFFAAAAAA : 0xFF666666;
 
-        // Thumb border & fill
-        graphics.fill(trackX + 1, thumbY, trackX + trackW - 1, thumbY + thumbH, 0xFF777777);
-        graphics.fill(trackX + 2, thumbY + 1, trackX + trackW - 2, thumbY + thumbH - 1, thumbColor);
+        // Thumb fill
+        graphics.fill(trackX, thumbY, trackX + trackW, thumbY + thumbH, thumbColor);
     }
 
     private void renderSettingsTab(GuiGraphicsExtractor graphics, int boxX, int boxY) {
@@ -352,15 +352,15 @@ public class EconomicsBoxScreen extends Screen {
             int boxX = (this.width  - BOX_WIDTH)  / 2;
             int boxY = (this.height - BOX_HEIGHT) / 2;
 
-            int trackX = boxX + BOX_WIDTH - 18;
-            int trackY = boxY + 24;
-            int trackW = 12;
-            int trackH = BOX_HEIGHT - 30;
+            int trackX = boxX + BOX_WIDTH - 11;
+            int trackY = boxY + 25;
+            int trackW = 6;
+            int trackH = BOX_HEIGHT - 32;
 
             double mx = event.x();
             double my = event.y();
 
-            if (mx >= trackX && mx <= trackX + trackW && my >= trackY && my <= trackY + trackH) {
+            if (mx >= trackX - 4 && mx <= trackX + trackW + 4 && my >= trackY && my <= trackY + trackH) {
                 isDraggingScrollbar = true;
                 updateScrollFromMouseY((int) my, trackY, trackH);
                 return true;
@@ -373,8 +373,8 @@ public class EconomicsBoxScreen extends Screen {
     public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
         if (activeTab == Tab.SHOP && isDraggingScrollbar) {
             int boxY = (this.height - BOX_HEIGHT) / 2;
-            int trackY = boxY + 24;
-            int trackH = BOX_HEIGHT - 30;
+            int trackY = boxY + 25;
+            int trackH = BOX_HEIGHT - 32;
             updateScrollFromMouseY((int) event.y(), trackY, trackH);
             return true;
         }
@@ -393,7 +393,7 @@ public class EconomicsBoxScreen extends Screen {
         int maxOffset = Math.max(0, totalItems - 4);
         if (maxOffset <= 0) return;
 
-        int thumbH = Math.max(20, (trackH * 4) / Math.max(1, totalItems));
+        int thumbH = Math.max(18, (trackH * 4) / Math.max(1, totalItems));
         float ratio = (float) (mouseY - trackY - (thumbH / 2)) / (trackH - thumbH);
         int newOffset = Math.clamp(Math.round(ratio * maxOffset), 0, maxOffset);
 
@@ -424,14 +424,16 @@ public class EconomicsBoxScreen extends Screen {
     @Override
     public boolean keyPressed(KeyEvent event) {
         if (this.searchBox != null && this.searchBox.isFocused()) {
-            if (event.key() == 256) {
+            if (event.key() == 256) { // ESC unfocuses search box
                 this.searchBox.setFocused(false);
                 return true;
             }
-            return super.keyPressed(event);
+            // Consume ALL keypresses when search box is focused so typing 'N' NEVER closes screen!
+            super.keyPressed(event);
+            return true;
         }
 
-        if (event.key() == 78) {
+        if (event.key() == 78) { // GLFW_KEY_N
             this.onClose();
             return true;
         }
