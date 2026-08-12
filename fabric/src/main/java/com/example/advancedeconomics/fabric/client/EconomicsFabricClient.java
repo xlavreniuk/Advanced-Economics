@@ -2,6 +2,7 @@ package com.example.advancedeconomics.fabric.client;
 
 import com.example.advancedeconomics.AdvancedEconomicsCommon;
 import com.example.advancedeconomics.fabric.network.SyncBalancePayload;
+import com.example.advancedeconomics.fabric.network.SyncProfessionPayload;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -10,6 +11,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -19,10 +21,10 @@ import org.lwjgl.glfw.GLFW;
 import java.lang.reflect.Field;
 
 /**
- * Fabric Client Mod Initializer for Advanced Economics (v0.9).
- * - Registers 'N' keybinding to open the economics screen.
- * - Receives server-authoritative balance packets and updates ClientEconomyState.
- * - Injects "$ <balance>" label + "Economics" button into the inventory screen.
+ * Fabric Client Mod Initializer for Advanced Economics (v1.0).
+ * - Receives server-authoritative balance and profession packets.
+ * - Injects "$ <balance>" + "Economics" buttons into inventory.
+ * - Renders profession text directly above the 3D player entity model head in inventory.
  */
 public class EconomicsFabricClient implements ClientModInitializer {
 
@@ -49,14 +51,20 @@ public class EconomicsFabricClient implements ClientModInitializer {
     public void onInitializeClient() {
         try {
             AdvancedEconomicsCommon.LOGGER.info("=============================================");
-            AdvancedEconomicsCommon.LOGGER.info("Advanced Economics Fabric Client v0.9");
+            AdvancedEconomicsCommon.LOGGER.info("Advanced Economics Fabric Client v1.0");
             AdvancedEconomicsCommon.LOGGER.info("=============================================");
 
-            // 1. Register Client Receiver for Server Balance Sync
+            // 1. Register Client Receivers
             ClientPlayNetworking.registerGlobalReceiver(SyncBalancePayload.TYPE, (payload, context) -> {
                 long balance = payload.balance();
                 ClientEconomyState.setBalance(balance);
-                AdvancedEconomicsCommon.LOGGER.info("[AE Client] Received official server balance update: ${}", balance);
+                AdvancedEconomicsCommon.LOGGER.info("[AE Client] Synced balance: ${}", balance);
+            });
+
+            ClientPlayNetworking.registerGlobalReceiver(SyncProfessionPayload.TYPE, (payload, context) -> {
+                String profession = payload.profession();
+                ClientEconomyState.setProfession(profession);
+                AdvancedEconomicsCommon.LOGGER.info("[AE Client] Synced profession: {}", profession);
             });
 
             // 2. Register 'N' keybinding
@@ -83,7 +91,7 @@ public class EconomicsFabricClient implements ClientModInitializer {
                 }
             });
 
-            // 3. Inject balance display + Economics button into Inventory
+            // 3. Inject Inventory widgets and render profession above player head
             ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
                 if (!(screen instanceof InventoryScreen inv)) return;
 
@@ -111,7 +119,7 @@ public class EconomicsFabricClient implements ClientModInitializer {
 
                 long currentBalance = ClientEconomyState.getBalance();
 
-                // Live dynamic balance button in inventory
+                // Balance display button
                 Screens.getWidgets(screen).add(
                         Button.builder(Component.literal("$ " + currentBalance), btn -> {})
                                 .bounds(balX, rowY, balWidth, btnHeight)
@@ -124,9 +132,25 @@ public class EconomicsFabricClient implements ClientModInitializer {
                                 client.gui.setScreen(new EconomicsBoxScreen())
                         ).bounds(ecoX, rowY, ecoWidth, btnHeight).build()
                 );
+
+                // 4. Render profession text directly above 3D player entity head in inventory
+                final int finalLeftPos = leftPos;
+                final int finalTopPos  = topPos;
+                ScreenEvents.afterExtract(screen).register((scr, graphics, mouseX, mouseY, delta) -> {
+                    try {
+                        Font font = Screens.getFont(scr);
+                        String profession = ClientEconomyState.getProfession();
+                        // 3D Player preview box center is at leftPos + 51, top is at topPos + 8
+                        int headX = finalLeftPos + 51;
+                        int headY = finalTopPos + 6;
+
+                        int textColor = "None".equalsIgnoreCase(profession) ? 0xAAAAAA : 0xFFDD55;
+                        graphics.centeredText(font, profession, headX, headY, textColor);
+                    } catch (Throwable ignored) {}
+                });
             });
 
-            AdvancedEconomicsCommon.LOGGER.info("Ready. Client-side network synchronization enabled.");
+            AdvancedEconomicsCommon.LOGGER.info("Ready. Profession overlay & server economy active.");
 
         } catch (Throwable t) {
             AdvancedEconomicsCommon.LOGGER.error("[AE] Client init failed: {}", t.getMessage(), t);
