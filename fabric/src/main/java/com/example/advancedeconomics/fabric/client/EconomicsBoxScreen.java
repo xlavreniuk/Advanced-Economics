@@ -23,17 +23,11 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Advanced Economics Box Screen (v0.38).
+ * Advanced Economics Box Screen (v0.39).
  *
- * Full Scrollable Settings View with feature toggles and multipliers:
- * - Allow Selling (ON/OFF)
- * - Allow Buying (ON/OFF)
- * - Allow Unlocking (ON/OFF)
- * - Enable Professions (ON/OFF)
- * - Enable XP Leveling (ON/OFF)
- * - Sell Multiplier (-/+)
- * - Buy Multiplier (-/+)
- * - Unlock Multiplier (-/+)
+ * Universal Cursor Fix:
+ * - All buttons maintain active = true for normal mouse hover cursor (never shows unavailable/cross cursor).
+ * - Visually disabled buttons temporarily toggle active = false only during rendering to draw Minecraft's locked button texture sprite.
  */
 public class EconomicsBoxScreen extends Screen {
 
@@ -64,6 +58,8 @@ public class EconomicsBoxScreen extends Screen {
     private Button shopTabBtn;
     private Button profTabBtn;
     private Button setTabBtn;
+
+    private final List<Button> disabledActionButtons = new ArrayList<>();
 
     public EconomicsBoxScreen() {
         this(Tab.SHOP);
@@ -111,7 +107,7 @@ public class EconomicsBoxScreen extends Screen {
         int visualLeft  = boxX - BORDER;
         int visualRight = boxX + BOX_WIDTH + BORDER;
 
-        // Header Tab Buttons
+        // Header Tab Buttons (Keep active = true for normal hover cursor)
         shopTabBtn = Button.builder(Component.literal("Shop"), btn -> switchTab(Tab.SHOP))
                 .bounds(visualLeft, btnY, BTN_WIDTH, BTN_HEIGHT).build();
         addRenderableWidget(shopTabBtn);
@@ -137,6 +133,8 @@ public class EconomicsBoxScreen extends Screen {
     }
 
     private void rebuildTabContent(int boxX, int boxY) {
+        disabledActionButtons.clear();
+
         if (activeTab == Tab.SHOP) {
             buildShopTabWidgets(boxX, boxY);
         } else if (activeTab == Tab.SETTINGS) {
@@ -218,25 +216,43 @@ public class EconomicsBoxScreen extends Screen {
                 String sellStr = formatPrice(sellPrice);
                 String buyStr  = formatPrice(buyPrice);
 
+                boolean canSell = hasItemInInventory && ClientEconomyState.isAllowSelling();
                 Button sellBtn = Button.builder(Component.literal("Sell " + sellStr), btn -> {
-                    ClientPlayNetworking.send(new RequestSellPayload(shopItem.id()));
+                    if (canSell) {
+                        ClientPlayNetworking.send(new RequestSellPayload(shopItem.id()));
+                    }
                 }).bounds(boxX + 168, rowY + 8, 64, 18).build();
-                sellBtn.active = hasItemInInventory && ClientEconomyState.isAllowSelling();
                 addRenderableWidget(sellBtn);
 
+                if (!canSell) {
+                    disabledActionButtons.add(sellBtn);
+                }
+
+                boolean canBuy = ClientEconomyState.isAllowBuying();
                 Button buyBtn = Button.builder(Component.literal("Buy " + buyStr), btn -> {
-                    ClientPlayNetworking.send(new RequestBuyPayload(shopItem.id()));
+                    if (canBuy) {
+                        ClientPlayNetworking.send(new RequestBuyPayload(shopItem.id()));
+                    }
                 }).bounds(boxX + 236, rowY + 8, 58, 18).build();
-                buyBtn.active = ClientEconomyState.isAllowBuying();
                 addRenderableWidget(buyBtn);
+
+                if (!canBuy) {
+                    disabledActionButtons.add(buyBtn);
+                }
             } else {
                 String unlockStr = formatPrice(unlockPrice);
 
+                boolean canUnlock = ClientEconomyState.isAllowUnlocking();
                 Button unlockBtn = Button.builder(Component.literal("Unlock " + unlockStr), btn -> {
-                    ClientPlayNetworking.send(new RequestUnlockPayload(shopItem.id()));
+                    if (canUnlock) {
+                        ClientPlayNetworking.send(new RequestUnlockPayload(shopItem.id()));
+                    }
                 }).bounds(boxX + 220, rowY + 8, 74, 18).build();
-                unlockBtn.active = ClientEconomyState.isAllowUnlocking();
                 addRenderableWidget(unlockBtn);
+
+                if (!canUnlock) {
+                    disabledActionButtons.add(unlockBtn);
+                }
             }
         }
     }
@@ -249,7 +265,7 @@ public class EconomicsBoxScreen extends Screen {
         int maxOffset = Math.max(0, selectable.length - 3);
         professionScrollOffset = Math.clamp(professionScrollOffset, 0, maxOffset);
 
-        // Scroll Buttons below grey line (y: boxY + 36 to boxY + 154)
+        // Scroll Buttons below grey line
         addRenderableWidget(Button.builder(Component.literal("▲"), btn -> {
             if (professionScrollOffset > 0) {
                 professionScrollOffset--;
@@ -276,13 +292,19 @@ public class EconomicsBoxScreen extends Screen {
             boolean isCurrent = currentProfName.equalsIgnoreCase(prof.getDisplayName()) || currentProfName.equalsIgnoreCase(prof.name());
 
             if (!isCurrent) {
+                boolean canSelect = ClientEconomyState.isEnableProfessions();
                 Button selectBtn = Button.builder(Component.literal("Select"), btn -> {
-                    ClientPlayNetworking.send(new RequestSetProfessionPayload(prof.name()));
-                    ClientEconomyState.setProfession(prof.getDisplayName());
-                    rebuildWidgets();
+                    if (canSelect) {
+                        ClientPlayNetworking.send(new RequestSetProfessionPayload(prof.name()));
+                        ClientEconomyState.setProfession(prof.getDisplayName());
+                        rebuildWidgets();
+                    }
                 }).bounds(boxX + 240, rowY + 12, 54, 18).build();
-                selectBtn.active = ClientEconomyState.isEnableProfessions();
                 addRenderableWidget(selectBtn);
+
+                if (!canSelect) {
+                    disabledActionButtons.add(selectBtn);
+                }
             }
         }
     }
@@ -427,8 +449,16 @@ public class EconomicsBoxScreen extends Screen {
             renderProfessionTab(graphics, boxX, boxY);
         }
 
-        // Pass 4: Draw interactive widgets & buttons
+        // Pass 4: Temporarily set active = false for disabled buttons to render locked texture sprite, then restore active = true for normal hover cursor!
+        for (Button disabledBtn : disabledActionButtons) {
+            disabledBtn.active = false;
+        }
+
         super.extractRenderState(graphics, mouseX, mouseY, delta);
+
+        for (Button disabledBtn : disabledActionButtons) {
+            disabledBtn.active = true;
+        }
 
         // Pass 5: Re-render non-selected tab buttons with locked texture sprite and bright white text (0xFFFFFFFF)
         int btnY = boxY - BTN_HEIGHT - BTN_MARGIN;
