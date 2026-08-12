@@ -443,6 +443,14 @@ public class EconomicsBoxScreen extends Screen {
         return super.keyPressed(event);
     }
 
+    public Tab getActiveTab() {
+        return activeTab;
+    }
+
+    public void refreshUI() {
+        this.rebuildWidgets();
+    }
+
     @Override
     public boolean isPauseScreen() {
         return false;

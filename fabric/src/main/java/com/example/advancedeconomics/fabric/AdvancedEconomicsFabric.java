@@ -19,13 +19,14 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import java.io.File;
 import java.util.Set;
 
 /**
  * Main Fabric Initializer (v0.10).
- * Handles server-authoritative logic & auto-unlock inventory scanning on world load.
+ * Reliable auto-unlock inventory scanning & live network state synchronization.
  */
 public class AdvancedEconomicsFabric implements ModInitializer {
 
@@ -47,7 +48,7 @@ public class AdvancedEconomicsFabric implements ModInitializer {
         PayloadTypeRegistry.serverboundPlay().register(RequestSellPayload.TYPE, RequestSellPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RequestUpdateSettingsPayload.TYPE, RequestUpdateSettingsPayload.CODEC);
 
-        // 3. World Lifecycle Events (Load & Save)
+        // 3. World Lifecycle Events
         ServerLifecycleEvents.SERVER_STARTING.register(server -> {
             File worldDir = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT).toFile();
             File aeDataDir = new File(worldDir, "data/advanced_economics");
@@ -75,7 +76,7 @@ public class AdvancedEconomicsFabric implements ModInitializer {
             PlayerUnlockManager.save(aeDataDir);
         });
 
-        // 4. Sync & Auto-unlock inventory items on Player Join / World Load
+        // 4. Sync & Auto-unlock inventory items on Player Join
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayer player = handler.player;
             scanAndUnlockInventory(player);
@@ -118,7 +119,6 @@ public class AdvancedEconomicsFabric implements ModInitializer {
             if (player != null && shopItem != null) {
                 Item mcItem = BuiltInRegistries.ITEM.getValue(Identifier.fromNamespaceAndPath("minecraft", shopItem.id()));
                 if (mcItem != null) {
-                    // Remove 1 item from player inventory
                     for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
                         ItemStack stack = player.getInventory().getItem(i);
                         if (!stack.isEmpty() && stack.is(mcItem)) {
@@ -150,10 +150,10 @@ public class AdvancedEconomicsFabric implements ModInitializer {
             }
         });
 
-        // 6. Continuous Inventory Scanner (Every 20 ticks / 1 second)
+        // 6. Continuous Inventory Scanner (Every 10 ticks / 0.5 seconds)
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             tickCounter++;
-            if (tickCounter % 20 == 0) {
+            if (tickCounter % 10 == 0) {
                 for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                     if (scanAndUnlockInventory(player)) {
                         syncPlayerState(player);
@@ -165,17 +165,19 @@ public class AdvancedEconomicsFabric implements ModInitializer {
         AdvancedEconomicsCommon.LOGGER.info("Advanced Economics Fabric fully initialized.");
     }
 
+    /**
+     * Scans player inventory against ShopTable items and unlocks any item currently held.
+     */
     private boolean scanAndUnlockInventory(ServerPlayer player) {
         if (player == null) return false;
         boolean newlyUnlocked = false;
-        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-            ItemStack stack = player.getInventory().getItem(i);
-            if (!stack.isEmpty()) {
-                Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
-                if (id != null) {
-                    String itemId = id.getPath();
-                    if (ShopTable.findById(itemId) != null && !PlayerUnlockManager.isUnlocked(player.getUUID(), itemId)) {
-                        PlayerUnlockManager.unlock(player.getUUID(), itemId);
+
+        for (ShopItem shopItem : ShopTable.getItems()) {
+            if (!PlayerUnlockManager.isUnlocked(player.getUUID(), shopItem.id())) {
+                Item mcItem = BuiltInRegistries.ITEM.getValue(Identifier.fromNamespaceAndPath("minecraft", shopItem.id()));
+                if (mcItem != null && mcItem != Items.AIR) {
+                    if (player.getInventory().contains(new ItemStack(mcItem))) {
+                        PlayerUnlockManager.unlock(player.getUUID(), shopItem.id());
                         newlyUnlocked = true;
                     }
                 }

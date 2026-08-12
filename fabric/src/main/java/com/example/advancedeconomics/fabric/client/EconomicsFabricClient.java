@@ -3,6 +3,8 @@ package com.example.advancedeconomics.fabric.client;
 import com.example.advancedeconomics.AdvancedEconomicsCommon;
 import com.example.advancedeconomics.fabric.network.SyncBalancePayload;
 import com.example.advancedeconomics.fabric.network.SyncProfessionPayload;
+import com.example.advancedeconomics.fabric.network.SyncSettingsPayload;
+import com.example.advancedeconomics.fabric.network.SyncUnlocksPayload;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -18,14 +20,12 @@ import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
 import java.lang.reflect.Field;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Fabric Client Mod Initializer for Advanced Economics (v0.10).
- *
- * Top row above inventory header (Right to Left):
- * [Profession] -> opens Profession tab
- * [$ Balance]  -> opens Shop tab
- * [Economics]  -> opens Shop tab
+ * Handles network payloads and schedules updates onto main client thread.
  */
 public class EconomicsFabricClient implements ClientModInitializer {
 
@@ -55,17 +55,42 @@ public class EconomicsFabricClient implements ClientModInitializer {
             AdvancedEconomicsCommon.LOGGER.info("Advanced Economics Fabric Client v0.10");
             AdvancedEconomicsCommon.LOGGER.info("=============================================");
 
-            // 1. Register Client Receivers
+            // 1. Register Client Receivers (Thread-safe execution on client thread)
             ClientPlayNetworking.registerGlobalReceiver(SyncBalancePayload.TYPE, (payload, context) -> {
                 long balance = payload.balance();
-                ClientEconomyState.setBalance(balance);
-                AdvancedEconomicsCommon.LOGGER.info("[AE Client] Synced balance: ${}", balance);
+                context.client().execute(() -> {
+                    ClientEconomyState.setBalance(balance);
+                    refreshCurrentScreen(context.client());
+                });
             });
 
             ClientPlayNetworking.registerGlobalReceiver(SyncProfessionPayload.TYPE, (payload, context) -> {
                 String profession = payload.profession();
-                ClientEconomyState.setProfession(profession);
-                AdvancedEconomicsCommon.LOGGER.info("[AE Client] Synced profession: {}", profession);
+                context.client().execute(() -> {
+                    ClientEconomyState.setProfession(profession);
+                    refreshCurrentScreen(context.client());
+                });
+            });
+
+            ClientPlayNetworking.registerGlobalReceiver(SyncSettingsPayload.TYPE, (payload, context) -> {
+                context.client().execute(() -> {
+                    ClientEconomyState.setMultipliers(payload.sellMultiplier(), payload.buyMultiplier(), payload.unlockMultiplier());
+                    refreshCurrentScreen(context.client());
+                });
+            });
+
+            ClientPlayNetworking.registerGlobalReceiver(SyncUnlocksPayload.TYPE, (payload, context) -> {
+                String csv = payload.commaSeparatedUnlocks();
+                Set<String> set = new HashSet<>();
+                if (csv != null && !csv.isEmpty()) {
+                    for (String s : csv.split(",")) {
+                        if (!s.isBlank()) set.add(s.trim().toLowerCase());
+                    }
+                }
+                context.client().execute(() -> {
+                    ClientEconomyState.setUnlockedItems(set);
+                    refreshCurrentScreen(context.client());
+                });
             });
 
             // 2. Register 'N' keybinding
@@ -92,7 +117,7 @@ public class EconomicsFabricClient implements ClientModInitializer {
                 }
             });
 
-            // 3. Inject Inventory Header Widgets: [Profession] [$ Balance] [Economics]
+            // 3. Inject Inventory Header Widgets
             ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
                 if (!(screen instanceof InventoryScreen inv)) return;
 
@@ -116,33 +141,28 @@ public class EconomicsFabricClient implements ClientModInitializer {
                 int gap        = 2;
                 int rowY       = topPos - btnHeight - 2;
 
-                // [Economics] button on far right edge
                 int ecoX = leftPos + imageWidth - ecoWidth;
-
-                // [$ Balance] box immediately to the left of [Economics]
                 int balX = ecoX - gap - balWidth;
-
-                // [Profession] box immediately to the left of [$ Balance]
                 int profX = balX - gap - profWidth;
 
                 long currentBalance = ClientEconomyState.getBalance();
                 String profession = ClientEconomyState.getProfession();
 
-                // Profession Button -> Opens Profession Tab
+                // Profession Button
                 Screens.getWidgets(screen).add(
                         Button.builder(Component.literal(profession), btn ->
                                 client.gui.setScreen(new EconomicsBoxScreen(EconomicsBoxScreen.Tab.PROFESSION))
                         ).bounds(profX, rowY, profWidth, btnHeight).build()
                 );
 
-                // Money Balance Button -> Opens Shop Tab
+                // Money Balance Button (Green text)
                 Screens.getWidgets(screen).add(
-                        Button.builder(Component.literal("$ " + currentBalance), btn ->
+                        Button.builder(Component.literal("§a$ " + currentBalance), btn ->
                                 client.gui.setScreen(new EconomicsBoxScreen(EconomicsBoxScreen.Tab.SHOP))
                         ).bounds(balX, rowY, balWidth, btnHeight).build()
                 );
 
-                // Economics Button -> Opens Shop Tab
+                // Economics Button
                 Screens.getWidgets(screen).add(
                         Button.builder(Component.literal("Economics"), btn ->
                                 client.gui.setScreen(new EconomicsBoxScreen(EconomicsBoxScreen.Tab.SHOP))
@@ -150,10 +170,16 @@ public class EconomicsFabricClient implements ClientModInitializer {
                 );
             });
 
-            AdvancedEconomicsCommon.LOGGER.info("Ready. Interactive inventory header widgets active.");
+            AdvancedEconomicsCommon.LOGGER.info("Ready. Thread-safe client network synchronization active.");
 
         } catch (Throwable t) {
             AdvancedEconomicsCommon.LOGGER.error("[AE] Client init failed: {}", t.getMessage(), t);
+        }
+    }
+
+    private static void refreshCurrentScreen(net.minecraft.client.Minecraft client) {
+        if (client != null && client.gui.screen() instanceof EconomicsBoxScreen screen) {
+            screen.refreshUI();
         }
     }
 }
