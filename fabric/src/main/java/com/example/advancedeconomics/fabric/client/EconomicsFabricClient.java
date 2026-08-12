@@ -11,7 +11,6 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.KeyMapping;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -21,10 +20,10 @@ import org.lwjgl.glfw.GLFW;
 import java.lang.reflect.Field;
 
 /**
- * Fabric Client Mod Initializer for Advanced Economics (v1.0).
- * - Receives server-authoritative balance and profession packets.
- * - Injects "$ <balance>" + "Economics" buttons into inventory.
- * - Renders white profession text ("None") centered directly above the 3D player entity model head in inventory.
+ * Fabric Client Mod Initializer for Advanced Economics (v0.10).
+ *
+ * Top row above inventory header (Right to Left):
+ * [Profession Box: None]  [$ Balance]  [Economics]
  */
 public class EconomicsFabricClient implements ClientModInitializer {
 
@@ -51,7 +50,7 @@ public class EconomicsFabricClient implements ClientModInitializer {
     public void onInitializeClient() {
         try {
             AdvancedEconomicsCommon.LOGGER.info("=============================================");
-            AdvancedEconomicsCommon.LOGGER.info("Advanced Economics Fabric Client v1.0");
+            AdvancedEconomicsCommon.LOGGER.info("Advanced Economics Fabric Client v0.10");
             AdvancedEconomicsCommon.LOGGER.info("=============================================");
 
             // 1. Register Client Receivers
@@ -91,7 +90,7 @@ public class EconomicsFabricClient implements ClientModInitializer {
                 }
             });
 
-            // 3. Inject Inventory widgets & profession text overlay
+            // 3. Inject Inventory Header Widgets: [Profession] [$ Balance] [Economics]
             ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
                 if (!(screen instanceof InventoryScreen inv)) return;
 
@@ -110,49 +109,46 @@ public class EconomicsFabricClient implements ClientModInitializer {
 
                 int btnHeight  = 14;
                 int ecoWidth   = 60;
-                int balWidth   = 56;
+                int balWidth   = 50;
+                int profWidth  = 58;
                 int gap        = 2;
                 int rowY       = topPos - btnHeight - 2;
 
+                // [Economics] button on far right edge
                 int ecoX = leftPos + imageWidth - ecoWidth;
+
+                // [$ Balance] box immediately to the left of [Economics]
                 int balX = ecoX - gap - balWidth;
 
-                long currentBalance = ClientEconomyState.getBalance();
+                // [Profession] box immediately to the left of [$ Balance]
+                int profX = balX - gap - profWidth;
 
-                // Balance display button
+                long currentBalance = ClientEconomyState.getBalance();
+                String profession = ClientEconomyState.getProfession();
+
+                // Profession Box
+                Screens.getWidgets(screen).add(
+                        Button.builder(Component.literal(profession), btn -> {})
+                                .bounds(profX, rowY, profWidth, btnHeight)
+                                .build()
+                );
+
+                // Balance Display Box
                 Screens.getWidgets(screen).add(
                         Button.builder(Component.literal("$ " + currentBalance), btn -> {})
                                 .bounds(balX, rowY, balWidth, btnHeight)
                                 .build()
                 );
 
-                // Economics screen button
+                // Economics Screen Button
                 Screens.getWidgets(screen).add(
                         Button.builder(Component.literal("Economics"), btn ->
                                 client.gui.setScreen(new EconomicsBoxScreen())
                         ).bounds(ecoX, rowY, ecoWidth, btnHeight).build()
                 );
-
-                // Profession text widget
-                Screens.getWidgets(screen).add(
-                        new ProfessionLabelWidget(leftPos + 26, topPos + 8, 50, 10)
-                );
-
-                // Direct foreground render pass listener to ensure white text displays over 3D model
-                final int finalLeftPos = leftPos;
-                final int finalTopPos  = topPos;
-                ScreenEvents.afterForeground(screen).register((scr, graphics, mouseX, mouseY, delta) -> {
-                    try {
-                        Font font = Screens.getFont(scr);
-                        String profession = ClientEconomyState.getProfession();
-                        int headX = finalLeftPos + 51;
-                        int headY = finalTopPos + 8;
-                        graphics.centeredText(font, profession, headX, headY, 0xFFFFFF);
-                    } catch (Throwable ignored) {}
-                });
             });
 
-            AdvancedEconomicsCommon.LOGGER.info("Ready. Profession overlay active.");
+            AdvancedEconomicsCommon.LOGGER.info("Ready. Inventory header widgets active.");
 
         } catch (Throwable t) {
             AdvancedEconomicsCommon.LOGGER.error("[AE] Client init failed: {}", t.getMessage(), t);
