@@ -77,7 +77,11 @@ public class EconomicsFabricClient implements ClientModInitializer {
 
             ClientPlayNetworking.registerGlobalReceiver(SyncSettingsPayload.TYPE, (payload, context) -> {
                 context.client().execute(() -> {
-                    ClientEconomyState.setMultipliers(payload.sellMultiplier(), payload.buyMultiplier(), payload.unlockMultiplier());
+                    ClientEconomyState.setSettings(
+                            payload.sellMultiplier(), payload.buyMultiplier(), payload.unlockMultiplier(),
+                            payload.allowSelling(), payload.allowBuying(), payload.allowUnlocking(),
+                            payload.enableProfessions(), payload.enableXpLeveling()
+                    );
                     refreshCurrentScreen(context.client());
                 });
             });

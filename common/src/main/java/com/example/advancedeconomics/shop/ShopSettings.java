@@ -9,20 +9,32 @@ import java.io.FileReader;
 import java.io.FileWriter;
 
 /**
- * Global Economy Price Multipliers Config (v0.29).
+ * Global Economy Settings & Feature Toggles Config (v0.38).
  */
 public class ShopSettings {
 
-    private static int sellMultiplier   = 1;
-    private static int buyMultiplier    = 5;
-    private static int unlockMultiplier = 10;
+    private static int sellMultiplier     = 1;
+    private static int buyMultiplier      = 5;
+    private static int unlockMultiplier   = 10;
+
+    private static boolean allowSelling     = true;
+    private static boolean allowBuying      = true;
+    private static boolean allowUnlocking   = true;
+    private static boolean enableProfessions= true;
+    private static boolean enableXpLeveling = true;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     public static class SettingsData {
-        public int sellMultiplier   = 1;
-        public int buyMultiplier    = 5;
-        public int unlockMultiplier = 10;
+        public int sellMultiplier     = 1;
+        public int buyMultiplier      = 5;
+        public int unlockMultiplier   = 10;
+
+        public boolean allowSelling     = true;
+        public boolean allowBuying      = true;
+        public boolean allowUnlocking   = true;
+        public boolean enableProfessions= true;
+        public boolean enableXpLeveling = true;
     }
 
     public static int getSellMultiplier() {
@@ -37,6 +49,26 @@ public class ShopSettings {
         return unlockMultiplier;
     }
 
+    public static boolean isAllowSelling() {
+        return allowSelling;
+    }
+
+    public static boolean isAllowBuying() {
+        return allowBuying;
+    }
+
+    public static boolean isAllowUnlocking() {
+        return allowUnlocking;
+    }
+
+    public static boolean isEnableProfessions() {
+        return enableProfessions;
+    }
+
+    public static boolean isEnableXpLeveling() {
+        return enableXpLeveling;
+    }
+
     public static void setSellMultiplier(int mult) {
         sellMultiplier = Math.max(1, mult);
     }
@@ -47,6 +79,26 @@ public class ShopSettings {
 
     public static void setUnlockMultiplier(int mult) {
         unlockMultiplier = Math.max(1, mult);
+    }
+
+    public static void setAllowSelling(boolean allow) {
+        allowSelling = allow;
+    }
+
+    public static void setAllowBuying(boolean allow) {
+        allowBuying = allow;
+    }
+
+    public static void setAllowUnlocking(boolean allow) {
+        allowUnlocking = allow;
+    }
+
+    public static void setEnableProfessions(boolean enable) {
+        enableProfessions = enable;
+    }
+
+    public static void setEnableXpLeveling(boolean enable) {
+        enableXpLeveling = enable;
     }
 
     public static double calculateSellPrice(double basePrice) {
@@ -67,9 +119,15 @@ public class ShopSettings {
         try (FileReader reader = new FileReader(file)) {
             SettingsData data = GSON.fromJson(reader, SettingsData.class);
             if (data != null) {
-                sellMultiplier   = Math.max(1, data.sellMultiplier);
-                buyMultiplier    = Math.max(1, data.buyMultiplier);
-                unlockMultiplier = Math.max(1, data.unlockMultiplier);
+                sellMultiplier     = Math.max(1, data.sellMultiplier);
+                buyMultiplier      = Math.max(1, data.buyMultiplier);
+                unlockMultiplier   = Math.max(1, data.unlockMultiplier);
+
+                allowSelling       = data.allowSelling;
+                allowBuying        = data.allowBuying;
+                allowUnlocking     = data.allowUnlocking;
+                enableProfessions  = data.enableProfessions;
+                enableXpLeveling   = data.enableXpLeveling;
             }
         } catch (Exception e) {
             AdvancedEconomicsCommon.LOGGER.error("[AE] Failed to load settings: {}", e.getMessage());
@@ -81,9 +139,15 @@ public class ShopSettings {
         File file = new File(dataDir, "settings.json");
         try (FileWriter writer = new FileWriter(file)) {
             SettingsData data = new SettingsData();
-            data.sellMultiplier   = sellMultiplier;
-            data.buyMultiplier    = buyMultiplier;
-            data.unlockMultiplier = unlockMultiplier;
+            data.sellMultiplier     = sellMultiplier;
+            data.buyMultiplier      = buyMultiplier;
+            data.unlockMultiplier   = unlockMultiplier;
+
+            data.allowSelling       = allowSelling;
+            data.allowBuying        = allowBuying;
+            data.allowUnlocking     = allowUnlocking;
+            data.enableProfessions  = enableProfessions;
+            data.enableXpLeveling   = enableXpLeveling;
             GSON.toJson(data, writer);
         } catch (Exception e) {
             AdvancedEconomicsCommon.LOGGER.error("[AE] Failed to save settings: {}", e.getMessage());

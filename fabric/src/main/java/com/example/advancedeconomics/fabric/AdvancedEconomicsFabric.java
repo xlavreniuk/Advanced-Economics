@@ -35,10 +35,8 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Main Fabric Initializer (v0.34).
- *
- * Unified /ae Command Suite:
- * Standard Pattern: /ae <action> <quantity/item> [player] (defaults to current player if omitted).
+ * Main Fabric Initializer (v0.38).
+ * Enforces economy settings & feature toggles on serverbound requests.
  */
 public class AdvancedEconomicsFabric implements ModInitializer {
 
@@ -102,7 +100,7 @@ public class AdvancedEconomicsFabric implements ModInitializer {
         // 6. Serverbound Packet Handlers
         ServerPlayNetworking.registerGlobalReceiver(RequestSetProfessionPayload.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();
-            if (player != null) {
+            if (player != null && ShopSettings.isEnableProfessions()) {
                 Profession prof = Profession.fromId(payload.professionId());
                 ProfessionManager.setProfession(player.getUUID(), prof);
                 syncPlayerState(player);
@@ -112,7 +110,7 @@ public class AdvancedEconomicsFabric implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(RequestUnlockPayload.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();
             ShopItem item = ShopTable.findById(payload.itemId());
-            if (player != null && item != null) {
+            if (player != null && item != null && ShopSettings.isAllowUnlocking()) {
                 double costDollars = ShopSettings.calculateUnlockPrice(item.basePrice());
                 long costCents = Math.round(costDollars * 100.0);
                 if (EconomyManager.withdraw(player.getUUID(), costCents)) {
@@ -145,12 +143,14 @@ public class AdvancedEconomicsFabric implements ModInitializer {
                 ShopSettings.setBuyMultiplier(payload.buyMultiplier());
                 ShopSettings.setUnlockMultiplier(payload.unlockMultiplier());
 
+                ShopSettings.setAllowSelling(payload.allowSelling());
+                ShopSettings.setAllowBuying(payload.allowBuying());
+                ShopSettings.setAllowUnlocking(payload.allowUnlocking());
+                ShopSettings.setEnableProfessions(payload.enableProfessions());
+                ShopSettings.setEnableXpLeveling(payload.enableXpLeveling());
+
                 for (ServerPlayer onlinePlayer : context.server().getPlayerList().getPlayers()) {
-                    ServerPlayNetworking.send(onlinePlayer, new SyncSettingsPayload(
-                            ShopSettings.getSellMultiplier(),
-                            ShopSettings.getBuyMultiplier(),
-                            ShopSettings.getUnlockMultiplier()
-                    ));
+                    syncPlayerState(onlinePlayer);
                 }
             }
         });
@@ -347,6 +347,11 @@ public class AdvancedEconomicsFabric implements ModInitializer {
     }
 
     private static int executeBuyItem(ServerPlayer player, ShopItem shopItem, int quantity) {
+        if (!ShopSettings.isAllowBuying()) {
+            player.sendSystemMessage(Component.literal("§c[AE] Buying items is currently disabled in settings!"));
+            return 0;
+        }
+
         double totalCostDollars = ShopSettings.calculateBuyPrice(shopItem.basePrice()) * quantity;
         long totalCostCents = Math.round(totalCostDollars * 100.0);
 
@@ -400,6 +405,11 @@ public class AdvancedEconomicsFabric implements ModInitializer {
     }
 
     private static int executeSellItem(ServerPlayer player, ShopItem shopItem, int quantity) {
+        if (!ShopSettings.isAllowSelling()) {
+            player.sendSystemMessage(Component.literal("§c[AE] Selling items is currently disabled in settings!"));
+            return 0;
+        }
+
         Item mcItem = BuiltInRegistries.ITEM.getValue(Identifier.fromNamespaceAndPath("minecraft", shopItem.id()));
         if (mcItem == null || mcItem == Items.AIR) return 0;
 
@@ -418,13 +428,16 @@ public class AdvancedEconomicsFabric implements ModInitializer {
 
         if (countSold > 0) {
             double basePayoutDollars = ShopSettings.calculateSellPrice(shopItem.basePrice()) * countSold;
-            double bonusRatio = ProfessionManager.getProfessionSellBonusRatio(player.getUUID(), shopItem.id());
+            double bonusRatio = ShopSettings.isEnableProfessions() ? ProfessionManager.getProfessionSellBonusRatio(player.getUUID(), shopItem.id()) : 1.0;
             double finalPayoutDollars = basePayoutDollars * bonusRatio;
 
             long payoutCents = Math.max(1L, Math.round(finalPayoutDollars * 100.0));
-            long xpAmount = Math.max(1L, Math.round(shopItem.basePrice() * 100.0 * countSold));
 
-            ProfessionManager.addXp(player.getUUID(), xpAmount);
+            if (ShopSettings.isEnableXpLeveling()) {
+                long xpAmount = Math.max(1L, Math.round(shopItem.basePrice() * 100.0 * countSold));
+                ProfessionManager.addXp(player.getUUID(), xpAmount);
+            }
+
             EconomyManager.deposit(player.getUUID(), payoutCents);
             syncPlayerState(player);
 
@@ -440,6 +453,11 @@ public class AdvancedEconomicsFabric implements ModInitializer {
     private static int executeUnlockCmd(CommandSourceStack source, String itemId) {
         try {
             ServerPlayer player = source.getPlayerOrException();
+            if (!ShopSettings.isAllowUnlocking()) {
+                player.sendSystemMessage(Component.literal("§c[AE] Unlocking items is currently disabled in settings!"));
+                return 0;
+            }
+
             ShopItem shopItem = ShopTable.findById(itemId);
             if (shopItem == null) {
                 source.sendFailure(Component.literal("§c[AE] Unknown item: " + itemId));
@@ -507,7 +525,12 @@ public class AdvancedEconomicsFabric implements ModInitializer {
         ServerPlayNetworking.send(player, new SyncSettingsPayload(
                 ShopSettings.getSellMultiplier(),
                 ShopSettings.getBuyMultiplier(),
-                ShopSettings.getUnlockMultiplier()
+                ShopSettings.getUnlockMultiplier(),
+                ShopSettings.isAllowSelling(),
+                ShopSettings.isAllowBuying(),
+                ShopSettings.isAllowUnlocking(),
+                ShopSettings.isEnableProfessions(),
+                ShopSettings.isEnableXpLeveling()
         ));
         ServerPlayNetworking.send(player, new SyncUnlocksPayload(unlocksStr));
     }

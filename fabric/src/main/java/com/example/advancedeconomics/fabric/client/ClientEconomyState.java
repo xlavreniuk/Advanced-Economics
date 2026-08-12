@@ -4,7 +4,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Client-side cached read-only economy & profession state.
+ * Client-side cached read-only economy & profession state (v0.38).
  */
 public class ClientEconomyState {
 
@@ -17,6 +17,12 @@ public class ClientEconomyState {
     private static int sellMultiplier = 1;
     private static int buyMultiplier = 5;
     private static int unlockMultiplier = 10;
+
+    private static boolean allowSelling = true;
+    private static boolean allowBuying = true;
+    private static boolean allowUnlocking = true;
+    private static boolean enableProfessions = true;
+    private static boolean enableXpLeveling = true;
 
     private static final Set<String> UNLOCKED_ITEMS = new HashSet<>();
 
@@ -67,10 +73,36 @@ public class ClientEconomyState {
         return unlockMultiplier;
     }
 
-    public static void setMultipliers(int sell, int buy, int unlock) {
+    public static boolean isAllowSelling() {
+        return allowSelling;
+    }
+
+    public static boolean isAllowBuying() {
+        return allowBuying;
+    }
+
+    public static boolean isAllowUnlocking() {
+        return allowUnlocking;
+    }
+
+    public static boolean isEnableProfessions() {
+        return enableProfessions;
+    }
+
+    public static boolean isEnableXpLeveling() {
+        return enableXpLeveling;
+    }
+
+    public static void setSettings(int sell, int buy, int unlock, boolean sellOn, boolean buyOn, boolean unlockOn, boolean profOn, boolean xpOn) {
         sellMultiplier = Math.max(1, sell);
         buyMultiplier = Math.max(1, buy);
         unlockMultiplier = Math.max(1, unlock);
+
+        allowSelling = sellOn;
+        allowBuying = buyOn;
+        allowUnlocking = unlockOn;
+        enableProfessions = profOn;
+        enableXpLeveling = xpOn;
     }
 
     public static boolean isUnlocked(String itemId) {
