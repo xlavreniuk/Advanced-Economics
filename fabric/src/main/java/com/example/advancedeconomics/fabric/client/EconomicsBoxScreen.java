@@ -23,11 +23,10 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Advanced Economics Box Screen (v0.35).
+ * Advanced Economics Box Screen (v0.36).
  *
- * Tab Button Cursor Fix:
- * - Tab buttons stay active = true for normal mouse hover cursor and native click events.
- * - Non-selected tab buttons render with Minecraft's locked button texture sprite and 100% bright white text (0xFFFFFFFF).
+ * Layout Refinement:
+ * - Widen Shop item rows and Profession rows to fill space flush up to the thin scrollbar column.
  */
 public class EconomicsBoxScreen extends Screen {
 
@@ -104,7 +103,7 @@ public class EconomicsBoxScreen extends Screen {
         int visualLeft  = boxX - BORDER;
         int visualRight = boxX + BOX_WIDTH + BORDER;
 
-        // Header Tab Buttons: Keep active = true for normal mouse hover cursor!
+        // Header Tab Buttons
         shopTabBtn = Button.builder(Component.literal("Shop"), btn -> switchTab(Tab.SHOP))
                 .bounds(visualLeft, btnY, BTN_WIDTH, BTN_HEIGHT).build();
         addRenderableWidget(shopTabBtn);
@@ -213,19 +212,19 @@ public class EconomicsBoxScreen extends Screen {
 
                 Button sellBtn = Button.builder(Component.literal("Sell " + sellStr), btn -> {
                     ClientPlayNetworking.send(new RequestSellPayload(shopItem.id()));
-                }).bounds(boxX + 150, rowY + 8, 64, 18).build();
+                }).bounds(boxX + 168, rowY + 8, 64, 18).build();
                 sellBtn.active = hasItemInInventory;
                 addRenderableWidget(sellBtn);
 
                 addRenderableWidget(Button.builder(Component.literal("Buy " + buyStr), btn -> {
                     ClientPlayNetworking.send(new RequestBuyPayload(shopItem.id()));
-                }).bounds(boxX + 218, rowY + 8, 66, 18).build());
+                }).bounds(boxX + 236, rowY + 8, 58, 18).build());
             } else {
                 String unlockStr = formatPrice(unlockPrice);
 
                 addRenderableWidget(Button.builder(Component.literal("Unlock " + unlockStr), btn -> {
                     ClientPlayNetworking.send(new RequestUnlockPayload(shopItem.id()));
-                }).bounds(boxX + 204, rowY + 8, 80, 18).build());
+                }).bounds(boxX + 220, rowY + 8, 74, 18).build());
             }
         }
     }
@@ -269,7 +268,7 @@ public class EconomicsBoxScreen extends Screen {
                     ClientPlayNetworking.send(new RequestSetProfessionPayload(prof.name()));
                     ClientEconomyState.setProfession(prof.getDisplayName());
                     rebuildWidgets();
-                }).bounds(boxX + 224, rowY + 8, 58, 18).build());
+                }).bounds(boxX + 240, rowY + 8, 54, 18).build());
             }
         }
     }
@@ -342,7 +341,7 @@ public class EconomicsBoxScreen extends Screen {
         // Pass 3: Tab-specific backgrounds, text & item icons
         if (activeTab == Tab.SHOP) {
             renderMoneyBalanceBox(graphics, boxX + BOX_WIDTH - 124, boxY + 5, 118, 16);
-            graphics.fill(boxX + 5, boxY + 24, boxX + BOX_WIDTH - 26, boxY + 168, 0xFF0A0A0A);
+            graphics.fill(boxX + 5, boxY + 24, boxX + BOX_WIDTH - 10, boxY + 168, 0xFF0A0A0A);
             renderShopRows(graphics, boxX, boxY);
             renderDraggableScrollbar(graphics, boxX, boxY);
         } else if (activeTab == Tab.SETTINGS) {
@@ -410,8 +409,8 @@ public class EconomicsBoxScreen extends Screen {
             boolean isUnlocked = ClientEconomyState.isUnlocked(shopItem.id());
 
             int bgTint = isUnlocked ? 0xFF181818 : 0xFF101010;
-            graphics.fill(boxX + 6, rowY + 1, boxX + BOX_WIDTH - 28, rowY + rowHeight - 1, bgTint);
-            graphics.fill(boxX + 6, rowY + rowHeight - 1, boxX + BOX_WIDTH - 28, rowY + rowHeight, 0xFF282828);
+            graphics.fill(boxX + 6, rowY + 1, boxX + BOX_WIDTH - 20, rowY + rowHeight - 1, bgTint);
+            graphics.fill(boxX + 6, rowY + rowHeight - 1, boxX + BOX_WIDTH - 20, rowY + rowHeight, 0xFF282828);
 
             Item mcItem = BuiltInRegistries.ITEM.getValue(Identifier.fromNamespaceAndPath("minecraft", shopItem.id()));
             if (mcItem != null && mcItem != Items.AIR) {
@@ -503,7 +502,7 @@ public class EconomicsBoxScreen extends Screen {
                 Profession.LUMBERJACK, Profession.MINER, Profession.FARMER, Profession.HUNTER, Profession.WEAPONSMITH
         };
 
-        graphics.fill(boxX + 10, boxY + 56, boxX + BOX_WIDTH - 26, boxY + 168, 0xFF0A0A0A);
+        graphics.fill(boxX + 10, boxY + 56, boxX + BOX_WIDTH - 10, boxY + 168, 0xFF0A0A0A);
 
         int maxOffset = Math.max(0, selectable.length - 3);
         professionScrollOffset = Math.clamp(professionScrollOffset, 0, maxOffset);
@@ -519,8 +518,8 @@ public class EconomicsBoxScreen extends Screen {
             boolean isCurrent = profession.equalsIgnoreCase(prof.getDisplayName()) || profession.equalsIgnoreCase(prof.name());
 
             int bgTint = isCurrent ? 0xFF1E2E1E : 0xFF141414;
-            graphics.fill(boxX + 12, rowY + 1, boxX + BOX_WIDTH - 28, rowY + rowHeight - 2, bgTint);
-            graphics.fill(boxX + 12, rowY + rowHeight - 2, boxX + BOX_WIDTH - 28, rowY + rowHeight - 1, 0xFF2A2A2A);
+            graphics.fill(boxX + 12, rowY + 1, boxX + BOX_WIDTH - 20, rowY + rowHeight - 2, bgTint);
+            graphics.fill(boxX + 12, rowY + rowHeight - 2, boxX + BOX_WIDTH - 20, rowY + rowHeight - 1, 0xFF2A2A2A);
 
             Item profItem = getProfessionItemIcon(prof);
             if (profItem != null && profItem != Items.AIR) {
@@ -532,7 +531,7 @@ public class EconomicsBoxScreen extends Screen {
             graphics.text(this.getFont(), Component.literal("§7" + prof.getDescription()), boxX + 36, rowY + 17, 0xFFAAAAAA, true);
 
             if (isCurrent) {
-                graphics.text(this.getFont(), Component.literal("§a✔ Active"), boxX + 232, rowY + 10, 0xFF55FF55, true);
+                graphics.text(this.getFont(), Component.literal("§a✔ Active"), boxX + 245, rowY + 10, 0xFF55FF55, true);
             }
         }
 
