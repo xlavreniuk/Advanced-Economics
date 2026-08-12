@@ -22,13 +22,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Advanced Economics Box Screen (v0.23).
+ * Advanced Economics Box Screen (v0.24).
  *
- * Full Profession Tab Features:
- * - Top header displaying active profession name, Level, and XP progress bar (XP bar style).
- * - Selectable profession list (Lumberjack, Miner, Farmer, Hunter, Weaponsmith).
- * - Interactive [Select] buttons to choose/change career path.
- * - Sell price multiplier bonuses based on profession level.
+ * Profession Tab Refinements:
+ * - Scrollable Profession list (3 visible rows at a time) with sleek 6px draggable web scrollbar.
+ * - 3D Item icons for each profession (Oak Log, Iron Pickaxe, Wheat, Leather, Iron Sword).
+ * - Very short descriptions & 2%/level sell bonus ratio.
  */
 public class EconomicsBoxScreen extends Screen {
 
@@ -209,13 +208,16 @@ public class EconomicsBoxScreen extends Screen {
                 Profession.LUMBERJACK, Profession.MINER, Profession.FARMER, Profession.HUNTER, Profession.WEAPONSMITH
         };
 
-        int startY = boxY + 62;
-        int rowHeight = 34;
+        int maxOffset = Math.max(0, selectable.length - 3);
+        professionScrollOffset = Math.clamp(professionScrollOffset, 0, maxOffset);
 
+        int startY = boxY + 58;
+        int rowHeight = 35;
         String currentProfName = ClientEconomyState.getProfession();
 
-        for (int i = 0; i < selectable.length; i++) {
-            final Profession prof = selectable[i];
+        int visibleCount = Math.min(3, selectable.length - professionScrollOffset);
+        for (int i = 0; i < visibleCount; i++) {
+            final Profession prof = selectable[professionScrollOffset + i];
             int rowY = startY + (i * rowHeight);
 
             boolean isCurrent = currentProfName.equalsIgnoreCase(prof.getDisplayName()) || currentProfName.equalsIgnoreCase(prof.name());
@@ -225,7 +227,7 @@ public class EconomicsBoxScreen extends Screen {
                     ClientPlayNetworking.send(new RequestSetProfessionPayload(prof.name()));
                     ClientEconomyState.setProfession(prof.getDisplayName());
                     rebuildWidgets();
-                }).bounds(boxX + 215, rowY + 6, 60, 18).build());
+                }).bounds(boxX + 215, rowY + 8, 58, 18).build());
             }
         }
     }
@@ -371,22 +373,18 @@ public class EconomicsBoxScreen extends Screen {
         int r2 = r1 + 28;
         int r3 = r2 + 28;
 
-        // Row 1: Sell Multiplier
         graphics.fill(boxX + 10, r1 - 3, boxX + BOX_WIDTH - 10, r1 + 19, 0xFF181818);
         graphics.text(this.getFont(), Component.literal("Sell Multiplier:"), boxX + 16, r1 + 3, 0xFFFFFFFF, true);
         graphics.text(this.getFont(), Component.literal("§e" + ClientEconomyState.getSellMultiplier() + "x"), boxX + 165, r1 + 3, 0xFFFFDD55, true);
 
-        // Row 2: Buy Multiplier
         graphics.fill(boxX + 10, r2 - 3, boxX + BOX_WIDTH - 10, r2 + 19, 0xFF181818);
         graphics.text(this.getFont(), Component.literal("Buy Multiplier:"), boxX + 16, r2 + 3, 0xFFFFFFFF, true);
         graphics.text(this.getFont(), Component.literal("§e" + ClientEconomyState.getBuyMultiplier() + "x"), boxX + 165, r2 + 3, 0xFFFFDD55, true);
 
-        // Row 3: Unlock Multiplier
         graphics.fill(boxX + 10, r3 - 3, boxX + BOX_WIDTH - 10, r3 + 19, 0xFF181818);
         graphics.text(this.getFont(), Component.literal("Unlock Multiplier:"), boxX + 16, r3 + 3, 0xFFFFFFFF, true);
         graphics.text(this.getFont(), Component.literal("§e" + ClientEconomyState.getUnlockMultiplier() + "x"), boxX + 165, r3 + 3, 0xFFFFDD55, true);
 
-        // Footnote explanation
         graphics.text(this.getFont(), Component.literal("§7Multiplies item prices in Shop (e.g. 5x base price)."), boxX + 14, startY + 112, 0xFFAAAAAA, true);
     }
 
@@ -398,82 +396,134 @@ public class EconomicsBoxScreen extends Screen {
 
         // 1. Top Header: Active Profession & Level
         String headerStr = "Active: §e" + profession + " §7(Level " + level + ")";
-        graphics.text(this.getFont(), Component.literal(headerStr), boxX + 12, boxY + 24, 0xFFFFFFFF, true);
+        graphics.text(this.getFont(), Component.literal(headerStr), boxX + 12, boxY + 22, 0xFFFFFFFF, true);
 
-        // Bonus info
-        int bonusPct = level * 5;
-        graphics.text(this.getFont(), Component.literal("§a+" + bonusPct + "% Sell Price Bonus"), boxX + 185, boxY + 24, 0xFF55FF55, true);
+        // 2% per level sell bonus
+        int bonusPct = level * 2;
+        graphics.text(this.getFont(), Component.literal("§a+" + bonusPct + "% Sell Bonus"), boxX + 198, boxY + 22, 0xFF55FF55, true);
 
         // 2. Minecraft XP Bar Style Progress Bar
         int barX = boxX + 12;
-        int barY = boxY + 38;
+        int barY = boxY + 35;
         int barW = 271;
         int barH = 14;
 
-        // XP Bar frame & dark background
         graphics.fill(barX - 1, barY - 1, barX + barW + 1, barY + barH + 1, 0xFF444444);
         graphics.fill(barX, barY, barX + barW, barY + barH, 0xFF0A1A0A);
 
-        // XP Fill
         double ratio = Math.clamp((double) xp / (double) Math.max(1, maxXp), 0.0, 1.0);
         int fillW = (int) Math.round(barW * ratio);
         if (fillW > 0) {
             graphics.fill(barX, barY, barX + fillW, barY + barH, 0xFF22AA22);
-            graphics.fill(barX, barY, barX + fillW, barY + 3, 0xFF55FF55); // Top highlight
+            graphics.fill(barX, barY, barX + fillW, barY + 3, 0xFF55FF55);
         }
 
-        // XP Text overlay
         String xpStr = "XP: " + xp + " / " + maxXp;
         graphics.centeredText(this.getFont(), Component.literal(xpStr), this.width / 2, barY + 3, 0xFFFFFFFF);
 
-        // 3. Selectable Profession List
+        // 3. Scrollable Selectable Profession List
         Profession[] selectable = new Profession[]{
                 Profession.LUMBERJACK, Profession.MINER, Profession.FARMER, Profession.HUNTER, Profession.WEAPONSMITH
         };
 
-        int startY = boxY + 62;
-        int rowHeight = 34;
+        // Draw inner viewport background
+        graphics.fill(boxX + 10, boxY + 56, boxX + BOX_WIDTH - 12, boxY + 165, 0xFF0A0A0A);
 
-        for (int i = 0; i < selectable.length; i++) {
-            Profession prof = selectable[i];
+        int maxOffset = Math.max(0, selectable.length - 3);
+        professionScrollOffset = Math.clamp(professionScrollOffset, 0, maxOffset);
+
+        int startY = boxY + 58;
+        int rowHeight = 35;
+
+        int visibleCount = Math.min(3, selectable.length - professionScrollOffset);
+        for (int i = 0; i < visibleCount; i++) {
+            Profession prof = selectable[professionScrollOffset + i];
             int rowY = startY + (i * rowHeight);
 
             boolean isCurrent = profession.equalsIgnoreCase(prof.getDisplayName()) || profession.equalsIgnoreCase(prof.name());
 
             int bgTint = isCurrent ? 0xFF1E2E1E : 0xFF141414;
-            graphics.fill(boxX + 12, rowY + 2, boxX + 283, rowY + rowHeight - 2, bgTint);
-            graphics.fill(boxX + 12, rowY + rowHeight - 2, boxX + 283, rowY + rowHeight - 1, 0xFF2A2A2A);
+            graphics.fill(boxX + 12, rowY + 1, boxX + BOX_WIDTH - 18, rowY + rowHeight - 2, bgTint);
+            graphics.fill(boxX + 12, rowY + rowHeight - 2, boxX + BOX_WIDTH - 18, rowY + rowHeight - 1, 0xFF2A2A2A);
+
+            // Render 3D Item Icon per Profession
+            Item profItem = getProfessionItemIcon(prof);
+            if (profItem != null && profItem != Items.AIR) {
+                graphics.item(new ItemStack(profItem), boxX + 16, rowY + 9);
+            }
 
             // Profession Name
             int nameColor = isCurrent ? 0xFF55FF55 : 0xFFFFFFFF;
-            graphics.text(this.getFont(), Component.literal(prof.getDisplayName()), boxX + 18, rowY + 5, nameColor, true);
+            graphics.text(this.getFont(), Component.literal(prof.getDisplayName()), boxX + 36, rowY + 5, nameColor, true);
 
-            // Profession description
-            graphics.text(this.getFont(), Component.literal("§7" + prof.getDescription()), boxX + 18, rowY + 17, 0xFFAAAAAA, true);
+            // Short Description
+            graphics.text(this.getFont(), Component.literal("§7" + prof.getDescription()), boxX + 36, rowY + 17, 0xFFAAAAAA, true);
 
             if (isCurrent) {
-                graphics.text(this.getFont(), Component.literal("§a✔ Active"), boxX + 225, rowY + 10, 0xFF55FF55, true);
+                graphics.text(this.getFont(), Component.literal("§a✔ Active"), boxX + 222, rowY + 10, 0xFF55FF55, true);
             }
         }
+
+        // Draggable Scrollbar for Profession tab
+        renderProfessionScrollbar(graphics, boxX, boxY, selectable.length);
+    }
+
+    private Item getProfessionItemIcon(Profession prof) {
+        switch (prof) {
+            case LUMBERJACK: return Items.OAK_LOG;
+            case MINER: return Items.IRON_PICKAXE;
+            case FARMER: return Items.WHEAT;
+            case HUNTER: return Items.LEATHER;
+            case WEAPONSMITH: return Items.IRON_SWORD;
+            default: return Items.AIR;
+        }
+    }
+
+    private void renderProfessionScrollbar(GuiGraphicsExtractor graphics, int boxX, int boxY, int totalItems) {
+        int maxOffset = Math.max(0, totalItems - 3);
+        if (maxOffset <= 0) return;
+
+        int trackX = boxX + BOX_WIDTH - 11;
+        int trackY = boxY + 58;
+        int trackW = 6;
+        int trackH = 104;
+
+        graphics.fill(trackX, trackY, trackX + trackW, trackY + trackH, 0xFF151515);
+
+        int thumbH = Math.max(18, (trackH * 3) / Math.max(1, totalItems));
+        int thumbY = trackY + ((trackH - thumbH) * professionScrollOffset) / maxOffset;
+        int thumbColor = isDraggingScrollbar ? 0xFFAAAAAA : 0xFF666666;
+
+        graphics.fill(trackX, thumbY, trackX + trackW, thumbY + thumbH, thumbColor);
     }
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (activeTab == Tab.SHOP) {
-            int boxX = (this.width  - BOX_WIDTH)  / 2;
-            int boxY = (this.height - BOX_HEIGHT) / 2;
+        int boxX = (this.width  - BOX_WIDTH)  / 2;
+        int boxY = (this.height - BOX_HEIGHT) / 2;
 
-            int trackX = boxX + BOX_WIDTH - 11;
+        int trackX = boxX + BOX_WIDTH - 11;
+        double mx = event.x();
+        double my = event.y();
+
+        if (activeTab == Tab.SHOP) {
             int trackY = boxY + 24;
             int trackW = 6;
             int trackH = 144;
 
-            double mx = event.x();
-            double my = event.y();
-
             if (mx >= trackX - 4 && mx <= trackX + trackW + 4 && my >= trackY && my <= trackY + trackH) {
                 isDraggingScrollbar = true;
                 updateScrollFromMouseY((int) my, trackY, trackH);
+                return true;
+            }
+        } else if (activeTab == Tab.PROFESSION) {
+            int trackY = boxY + 58;
+            int trackW = 6;
+            int trackH = 104;
+
+            if (mx >= trackX - 4 && mx <= trackX + trackW + 4 && my >= trackY && my <= trackY + trackH) {
+                isDraggingScrollbar = true;
+                updateProfessionScrollFromMouseY((int) my, trackY, trackH);
                 return true;
             }
         }
@@ -482,11 +532,17 @@ public class EconomicsBoxScreen extends Screen {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        int boxY = (this.height - BOX_HEIGHT) / 2;
+
         if (activeTab == Tab.SHOP && isDraggingScrollbar) {
-            int boxY = (this.height - BOX_HEIGHT) / 2;
             int trackY = boxY + 24;
             int trackH = 144;
             updateScrollFromMouseY((int) event.y(), trackY, trackH);
+            return true;
+        } else if (activeTab == Tab.PROFESSION && isDraggingScrollbar) {
+            int trackY = boxY + 58;
+            int trackH = 104;
+            updateProfessionScrollFromMouseY((int) event.y(), trackY, trackH);
             return true;
         }
         return super.mouseDragged(event, dragX, dragY);
@@ -514,6 +570,21 @@ public class EconomicsBoxScreen extends Screen {
         }
     }
 
+    private void updateProfessionScrollFromMouseY(int mouseY, int trackY, int trackH) {
+        int totalItems = 5;
+        int maxOffset = Math.max(0, totalItems - 3);
+        if (maxOffset <= 0) return;
+
+        int thumbH = Math.max(18, (trackH * 3) / totalItems);
+        float ratio = (float) (mouseY - trackY - (thumbH / 2)) / (trackH - thumbH);
+        int newOffset = Math.clamp(Math.round(ratio * maxOffset), 0, maxOffset);
+
+        if (newOffset != professionScrollOffset) {
+            professionScrollOffset = newOffset;
+            rebuildWidgets();
+        }
+    }
+
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         if (activeTab == Tab.SHOP) {
@@ -528,6 +599,17 @@ public class EconomicsBoxScreen extends Screen {
                 rebuildWidgets();
                 return true;
             }
+        } else if (activeTab == Tab.PROFESSION) {
+            int maxOffset = Math.max(0, 5 - 3);
+            if (verticalAmount < 0 && professionScrollOffset < maxOffset) {
+                professionScrollOffset++;
+                rebuildWidgets();
+                return true;
+            } else if (verticalAmount > 0 && professionScrollOffset > 0) {
+                professionScrollOffset--;
+                rebuildWidgets();
+                return true;
+            }
         }
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
@@ -535,7 +617,7 @@ public class EconomicsBoxScreen extends Screen {
     @Override
     public boolean keyPressed(KeyEvent event) {
         if (this.searchBox != null && (this.searchBox.isFocused() || this.getFocused() == this.searchBox)) {
-            if (event.key() == 256) { // ESC unfocuses search box
+            if (event.key() == 256) {
                 this.searchBox.setFocused(false);
                 this.setFocused(null);
                 return true;

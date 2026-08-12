@@ -81,8 +81,8 @@ public class ProfessionManager {
         // Check if item belongs to player's profession category
         boolean matches = matchItemToProfession(prof, itemId);
         if (matches) {
-            // 5% bonus per level
-            return 1.0 + (state.level * 0.05);
+            // 2% bonus per level
+            return 1.0 + (state.level * 0.02);
         }
         return 1.0;
     }

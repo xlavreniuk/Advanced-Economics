@@ -1,15 +1,15 @@
 package com.example.advancedeconomics.profession;
 
 /**
- * Profession Enum defining career paths with specializations and sell bonuses.
+ * Profession Enum with concise descriptions and 2%/level sell price bonuses.
  */
 public enum Profession {
-    NONE("Unemployed", "No active profession selected.", "none"),
-    LUMBERJACK("Lumberjack", "Wood specialist (+5%/level sell bonus on wood).", "wood"),
-    MINER("Miner", "Mining specialist (+5%/level sell bonus on ores/stone).", "miner"),
-    FARMER("Farmer", "Crops specialist (+5%/level sell bonus on crops/food).", "farmer"),
-    HUNTER("Hunter", "Hunter specialist (+5%/level sell bonus on mob drops).", "hunter"),
-    WEAPONSMITH("Weaponsmith", "Forge specialist (+5%/level sell bonus on gear).", "gear");
+    NONE("Unemployed", "No active profession.", "none"),
+    LUMBERJACK("Lumberjack", "Wood & forestry (+2%/lvl)", "wood"),
+    MINER("Miner", "Stones & ores (+2%/lvl)", "miner"),
+    FARMER("Farmer", "Crops & food (+2%/lvl)", "farmer"),
+    HUNTER("Hunter", "Mob drops & meats (+2%/lvl)", "hunter"),
+    WEAPONSMITH("Weaponsmith", "Weapons & armor (+2%/lvl)", "gear");
 
     private final String displayName;
     private final String description;
