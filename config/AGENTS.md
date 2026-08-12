@@ -22,10 +22,12 @@ You act as a **Minecraft Mod Creator** specialized in multi-loader mod developme
 
 ## Economy & Anti-Abuse System Directives
 1. **Universal Item Catalog**: 100% of all 1,400+ Minecraft items are dynamically indexed from `BuiltInRegistries.ITEM` with explicit tier prices ($0.01 to $500.00) or smart property-calculated fallback prices.
-2. **Anti-Arbitrage Protection**: `calculateSellPrice(base)` enforces a hard ceiling so total sell payout (after profession bonuses) never exceeds 80%-85% of buy price.
-3. **Anti-Spam Rate Limiter**: Server-side per-player cooldown (100ms) drops macro/auto-clicker packet spam.
-4. **Anti-Self Transfer**: `/ae send` blocks transferring money to oneself.
-5. **Anti-XP Farming**: Profession XP per transaction is capped at 500 XP.
-6. **UI Hover Cursor Rule**: All UI buttons MUST maintain `active = true` during mouse hover calculation so the system cursor NEVER shows the unavailable/cross icon. Visually disabled buttons temporarily toggle `active = false` only during `extractRenderState` rendering pass.
-7. **Scrollable Views**: Scrollable containers feature 6px draggable web scrollbars and 12x10px `▲` / `▼` scroll buttons.
-8. **GitHub Sync**: Remote origin configured at `https://github.com/xlavreniuk/Advanced-Economics.git`.
+2. **Shop 5-Mode Cycle Sort**: Icon-only sort button next to search box cycling `↑` (price low→high, default), `↓` (price high→low), `A` (name A-Z), `Z` (name Z-A), `#` (inventory quantity count scanning all 36 player slots).
+3. **Anti-Arbitrage Protection**: `calculateSellPrice(base)` enforces a hard ceiling so total sell payout (after profession bonuses) never exceeds 80%-85% of buy price.
+4. **Anti-Spam Rate Limiter**: Server-side per-player cooldown (100ms) drops macro/auto-clicker packet spam.
+5. **Anti-Self Transfer**: `/ae send` blocks transferring money to oneself.
+6. **Anti-XP Farming**: Profession XP per transaction is capped at 500 XP.
+7. **UI Hover Cursor Rule**: All UI buttons MUST maintain `active = true` during mouse hover calculation so the system cursor NEVER shows the unavailable/cross icon. Inactive tabs render via semi-transparent dark rect overlay (`0x88000000`). Action buttons toggle `active = false` temporarily ONLY during `extractRenderState` rendering.
+8. **Scrollable Views & Overhauled Settings**: Settings tab fills full height top-to-bottom with 0 top margin, categorized section headers (`Toggles` & `Multipliers`), short names, and distinct descriptions.
+9. **Build Cleanliness**: `build.gradle` has a `doFirst` cleanup wiping `fabric/build/libs/` to prevent historical mod jar accumulation in Prism Launcher's mods folder.
+10. **GitHub Sync**: Remote origin configured at `https://github.com/xlavreniuk/Advanced-Economics.git`.
