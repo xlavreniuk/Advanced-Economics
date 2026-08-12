@@ -22,11 +22,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Advanced Economics Box Screen (v0.27).
+ * Advanced Economics Box Screen (v0.28).
  *
- * Tab Button Styling:
- * - Selected tab button looks 100% normal and bright.
- * - Non-selected tab buttons render with a darkish/dimmed overlay (0x90000000).
+ * Scrollbar Button Styling:
+ * - Top ▲ and Bottom ▼ scroll buttons made thinner (12px wide, 10px high), centered over the 6px track.
  */
 public class EconomicsBoxScreen extends Screen {
 
@@ -163,20 +162,20 @@ public class EconomicsBoxScreen extends Screen {
         int maxOffset = Math.max(0, sortedItems.size() - 4);
         scrollOffset = Math.clamp(scrollOffset, 0, maxOffset);
 
-        // Small Top (▲) and Bottom (▼) Scroll Buttons for Shop
+        // Sleek Thinner Scroll Buttons (12px wide x 10px high)
         addRenderableWidget(Button.builder(Component.literal("▲"), btn -> {
             if (scrollOffset > 0) {
                 scrollOffset--;
                 rebuildWidgets();
             }
-        }).bounds(boxX + BOX_WIDTH - 24, boxY + 24, 18, 14).build());
+        }).bounds(boxX + BOX_WIDTH - 21, boxY + 26, 12, 10).build());
 
         addRenderableWidget(Button.builder(Component.literal("▼"), btn -> {
             if (scrollOffset < maxOffset) {
                 scrollOffset++;
                 rebuildWidgets();
             }
-        }).bounds(boxX + BOX_WIDTH - 24, boxY + 154, 18, 14).build());
+        }).bounds(boxX + BOX_WIDTH - 21, boxY + 154, 12, 10).build());
 
         int startY = boxY + 24;
         int rowHeight = 36;
@@ -225,20 +224,20 @@ public class EconomicsBoxScreen extends Screen {
         int maxOffset = Math.max(0, selectable.length - 3);
         professionScrollOffset = Math.clamp(professionScrollOffset, 0, maxOffset);
 
-        // Small Top (▲) and Bottom (▼) Scroll Buttons for Profession tab
+        // Sleek Thinner Scroll Buttons (12px wide x 10px high)
         addRenderableWidget(Button.builder(Component.literal("▲"), btn -> {
             if (professionScrollOffset > 0) {
                 professionScrollOffset--;
                 rebuildWidgets();
             }
-        }).bounds(boxX + BOX_WIDTH - 24, boxY + 58, 18, 14).build());
+        }).bounds(boxX + BOX_WIDTH - 21, boxY + 58, 12, 10).build());
 
         addRenderableWidget(Button.builder(Component.literal("▼"), btn -> {
             if (professionScrollOffset < maxOffset) {
                 professionScrollOffset++;
                 rebuildWidgets();
             }
-        }).bounds(boxX + BOX_WIDTH - 24, boxY + 152, 18, 14).build());
+        }).bounds(boxX + BOX_WIDTH - 21, boxY + 152, 12, 10).build());
 
         int startY = boxY + 58;
         int rowHeight = 35;
@@ -400,9 +399,9 @@ public class EconomicsBoxScreen extends Screen {
         if (maxOffset <= 0) return;
 
         int trackX = boxX + BOX_WIDTH - 18;
-        int trackY = boxY + 40;
+        int trackY = boxY + 38;
         int trackW = 6;
-        int trackH = 112;
+        int trackH = 114;
 
         graphics.fill(trackX, trackY, trackX + trackW, trackY + trackH, 0xFF151515);
 
@@ -522,9 +521,9 @@ public class EconomicsBoxScreen extends Screen {
         if (maxOffset <= 0) return;
 
         int trackX = boxX + BOX_WIDTH - 18;
-        int trackY = boxY + 74;
+        int trackY = boxY + 70;
         int trackW = 6;
-        int trackH = 76;
+        int trackH = 80;
 
         graphics.fill(trackX, trackY, trackX + trackW, trackY + trackH, 0xFF151515);
 
@@ -545,9 +544,9 @@ public class EconomicsBoxScreen extends Screen {
         double my = event.y();
 
         if (activeTab == Tab.SHOP) {
-            int trackY = boxY + 40;
+            int trackY = boxY + 38;
             int trackW = 6;
-            int trackH = 112;
+            int trackH = 114;
 
             if (mx >= trackX - 4 && mx <= trackX + trackW + 4 && my >= trackY && my <= trackY + trackH) {
                 isDraggingScrollbar = true;
@@ -555,9 +554,9 @@ public class EconomicsBoxScreen extends Screen {
                 return true;
             }
         } else if (activeTab == Tab.PROFESSION) {
-            int trackY = boxY + 74;
+            int trackY = boxY + 70;
             int trackW = 6;
-            int trackH = 76;
+            int trackH = 80;
 
             if (mx >= trackX - 4 && mx <= trackX + trackW + 4 && my >= trackY && my <= trackY + trackH) {
                 isDraggingScrollbar = true;
@@ -573,13 +572,13 @@ public class EconomicsBoxScreen extends Screen {
         int boxY = (this.height - BOX_HEIGHT) / 2;
 
         if (activeTab == Tab.SHOP && isDraggingScrollbar) {
-            int trackY = boxY + 40;
-            int trackH = 112;
+            int trackY = boxY + 38;
+            int trackH = 114;
             updateScrollFromMouseY((int) event.y(), trackY, trackH);
             return true;
         } else if (activeTab == Tab.PROFESSION && isDraggingScrollbar) {
-            int trackY = boxY + 74;
-            int trackH = 76;
+            int trackY = boxY + 70;
+            int trackH = 80;
             updateProfessionScrollFromMouseY((int) event.y(), trackY, trackH);
             return true;
         }
