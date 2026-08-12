@@ -8,13 +8,13 @@ import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.network.chat.Component;
 
 /**
- * Text Widget for rendering player profession centered above the 3D entity model in InventoryScreen.
+ * Text Widget for rendering player profession in crisp white text above the 3D entity model in InventoryScreen.
  */
 public class ProfessionLabelWidget extends AbstractWidget {
 
     public ProfessionLabelWidget(int x, int y, int width, int height) {
         super(x, y, width, height, Component.empty());
-        this.active = false; // Pure visual label, non-clickable
+        this.active = false;
     }
 
     @Override
@@ -23,12 +23,11 @@ public class ProfessionLabelWidget extends AbstractWidget {
         if (font == null) return;
 
         String profession = ClientEconomyState.getProfession();
-        int textColor = "None".equalsIgnoreCase(profession) ? 0xAAAAAA : 0xFFDD55;
-
         int centerX = this.getX() + this.getWidth() / 2;
         int centerY = this.getY();
 
-        graphics.centeredText(font, profession, centerX, centerY, textColor);
+        // Crisp white text as requested (e.g. "None")
+        graphics.centeredText(font, profession, centerX, centerY, 0xFFFFFF);
     }
 
     @Override

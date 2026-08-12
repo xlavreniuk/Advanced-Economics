@@ -11,6 +11,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -23,7 +24,7 @@ import java.lang.reflect.Field;
  * Fabric Client Mod Initializer for Advanced Economics (v1.0).
  * - Receives server-authoritative balance and profession packets.
  * - Injects "$ <balance>" + "Economics" buttons into inventory.
- * - Adds ProfessionLabelWidget directly above the 3D player model head in inventory.
+ * - Renders white profession text ("None") centered directly above the 3D player entity model head in inventory.
  */
 public class EconomicsFabricClient implements ClientModInitializer {
 
@@ -90,7 +91,7 @@ public class EconomicsFabricClient implements ClientModInitializer {
                 }
             });
 
-            // 3. Inject Inventory widgets & profession label widget
+            // 3. Inject Inventory widgets & profession text overlay
             ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
                 if (!(screen instanceof InventoryScreen inv)) return;
 
@@ -132,13 +133,26 @@ public class EconomicsFabricClient implements ClientModInitializer {
                         ).bounds(ecoX, rowY, ecoWidth, btnHeight).build()
                 );
 
-                // Profession text widget rendered centered directly above player 3D entity model head
+                // Profession text widget
                 Screens.getWidgets(screen).add(
-                        new ProfessionLabelWidget(leftPos + 26, topPos + 6, 50, 10)
+                        new ProfessionLabelWidget(leftPos + 26, topPos + 8, 50, 10)
                 );
+
+                // Direct foreground render pass listener to ensure white text displays over 3D model
+                final int finalLeftPos = leftPos;
+                final int finalTopPos  = topPos;
+                ScreenEvents.afterForeground(screen).register((scr, graphics, mouseX, mouseY, delta) -> {
+                    try {
+                        Font font = Screens.getFont(scr);
+                        String profession = ClientEconomyState.getProfession();
+                        int headX = finalLeftPos + 51;
+                        int headY = finalTopPos + 8;
+                        graphics.centeredText(font, profession, headX, headY, 0xFFFFFF);
+                    } catch (Throwable ignored) {}
+                });
             });
 
-            AdvancedEconomicsCommon.LOGGER.info("Ready. Profession widget overlay & server economy active.");
+            AdvancedEconomicsCommon.LOGGER.info("Ready. Profession overlay active.");
 
         } catch (Throwable t) {
             AdvancedEconomicsCommon.LOGGER.error("[AE] Client init failed: {}", t.getMessage(), t);
