@@ -15,15 +15,18 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Advanced Economics Box Screen (v0.10).
  *
- * Shop Tab Logic:
- * - Sell button is AVAILABLE EVERYWHERE for all items!
- * - Buy button becomes available once an item is obtained or unlocked.
- * - Unlock button (10x cost) unlocks the Buy button for items not yet obtained.
+ * Shop Tab UI Improvements:
+ * - Unlocked items sorted first, followed by locked items below.
+ * - Unlocked items display in bright white (0xFFFFFF); locked items display in dimmed grey (0x777777).
+ * - Inner scrollable container viewport with dark background & scrollbar indicator.
+ * - Sell button is available everywhere for all items.
+ * - Locked items display ONLY the Unlock button (10x cost). Once unlocked, it changes to the Buy button.
  */
 public class EconomicsBoxScreen extends Screen {
 
@@ -33,7 +36,7 @@ public class EconomicsBoxScreen extends Screen {
         SETTINGS
     }
 
-    private static final int BOX_WIDTH   = 285;
+    private static final int BOX_WIDTH   = 290;
     private static final int BOX_HEIGHT  = 175;
     private static final int BORDER      = 2;
     private static final int BTN_WIDTH   = 68;
@@ -54,6 +57,25 @@ public class EconomicsBoxScreen extends Screen {
         if (initialTab != null) {
             this.activeTab = initialTab;
         }
+    }
+
+    /**
+     * Get list of shop items with Unlocked items sorted FIRST.
+     */
+    private List<ShopItem> getSortedShopItems() {
+        List<ShopItem> all = ShopTable.getItems();
+        List<ShopItem> unlocked = new ArrayList<>();
+        List<ShopItem> locked = new ArrayList<>();
+
+        for (ShopItem item : all) {
+            if (ClientEconomyState.isUnlocked(item.id())) {
+                unlocked.add(item);
+            } else {
+                locked.add(item);
+            }
+        }
+        unlocked.addAll(locked);
+        return unlocked;
     }
 
     @Override
@@ -101,11 +123,11 @@ public class EconomicsBoxScreen extends Screen {
     }
 
     private void buildShopTabWidgets(int boxX, int boxY) {
-        List<ShopItem> items = ShopTable.getItems();
-        int maxOffset = Math.max(0, items.size() - 4);
+        List<ShopItem> sortedItems = getSortedShopItems();
+        int maxOffset = Math.max(0, sortedItems.size() - 4);
         scrollOffset = Math.min(scrollOffset, maxOffset);
 
-        int startY = boxY + 22;
+        int startY = boxY + 23;
         int rowHeight = 33;
 
         // Scroll Up / Down buttons
@@ -114,19 +136,19 @@ public class EconomicsBoxScreen extends Screen {
                 scrollOffset--;
                 rebuildWidgets();
             }
-        }).bounds(boxX + BOX_WIDTH - 22, startY, 18, 16).build());
+        }).bounds(boxX + BOX_WIDTH - 24, startY, 18, 16).build());
 
         addRenderableWidget(Button.builder(Component.literal("▼"), btn -> {
             if (scrollOffset < maxOffset) {
                 scrollOffset++;
                 rebuildWidgets();
             }
-        }).bounds(boxX + BOX_WIDTH - 22, startY + 124, 18, 16).build());
+        }).bounds(boxX + BOX_WIDTH - 24, startY + 124, 18, 16).build());
 
         // Build 4 visible item rows
-        int visibleCount = Math.min(4, items.size() - scrollOffset);
+        int visibleCount = Math.min(4, sortedItems.size() - scrollOffset);
         for (int i = 0; i < visibleCount; i++) {
-            final ShopItem shopItem = items.get(scrollOffset + i);
+            final ShopItem shopItem = sortedItems.get(scrollOffset + i);
             int rowY = startY + (i * rowHeight);
 
             boolean isUnlocked = ClientEconomyState.isUnlocked(shopItem.id());
@@ -139,9 +161,9 @@ public class EconomicsBoxScreen extends Screen {
                 ClientPlayNetworking.send(new RequestSellPayload(shopItem.id()));
             }).bounds(boxX + 138, rowY + 7, 56, 18).build());
 
-            // 2. BUY / UNLOCK BUTTON
+            // 2. BUY vs UNLOCK BUTTON (No Buy button when locked!)
             if (isUnlocked) {
-                // Buy button available when item is unlocked / obtained
+                // Buy button available once unlocked
                 addRenderableWidget(Button.builder(Component.literal("Buy $" + buyPrice), btn -> {
                     ClientPlayNetworking.send(new RequestBuyPayload(shopItem.id()));
                 }).bounds(boxX + 198, rowY + 7, 58, 18).build());
@@ -164,29 +186,29 @@ public class EconomicsBoxScreen extends Screen {
         // Sell Multiplier [-] [+]
         addRenderableWidget(Button.builder(Component.literal("-"), btn -> {
             sendUpdateSettings(Math.max(1, sellM - 1), buyM, unlockM);
-        }).bounds(boxX + 215, startY, 20, 18).build());
+        }).bounds(boxX + 220, startY, 20, 18).build());
 
         addRenderableWidget(Button.builder(Component.literal("+"), btn -> {
             sendUpdateSettings(sellM + 1, buyM, unlockM);
-        }).bounds(boxX + 240, startY, 20, 18).build());
+        }).bounds(boxX + 245, startY, 20, 18).build());
 
         // Buy Multiplier [-] [+]
         addRenderableWidget(Button.builder(Component.literal("-"), btn -> {
             sendUpdateSettings(sellM, Math.max(1, buyM - 1), unlockM);
-        }).bounds(boxX + 215, startY + 30, 20, 18).build());
+        }).bounds(boxX + 220, startY + 30, 20, 18).build());
 
         addRenderableWidget(Button.builder(Component.literal("+"), btn -> {
             sendUpdateSettings(sellM, buyM + 1, unlockM);
-        }).bounds(boxX + 240, startY + 30, 20, 18).build());
+        }).bounds(boxX + 245, startY + 30, 20, 18).build());
 
         // Unlock Multiplier [-] [+]
         addRenderableWidget(Button.builder(Component.literal("-"), btn -> {
             sendUpdateSettings(sellM, buyM, Math.max(1, unlockM - 1));
-        }).bounds(boxX + 215, startY + 60, 20, 18).build());
+        }).bounds(boxX + 220, startY + 60, 20, 18).build());
 
         addRenderableWidget(Button.builder(Component.literal("+"), btn -> {
             sendUpdateSettings(sellM, buyM, unlockM + 1);
-        }).bounds(boxX + 240, startY + 60, 20, 18).build());
+        }).bounds(boxX + 245, startY + 60, 20, 18).build());
     }
 
     private void sendUpdateSettings(int sellM, int buyM, int unlockM) {
@@ -203,18 +225,21 @@ public class EconomicsBoxScreen extends Screen {
         int boxX = (this.width  - BOX_WIDTH)  / 2;
         int boxY = (this.height - BOX_HEIGHT) / 2;
 
-        // Container border + dark fill
+        // Main outer container border & dark fill
         graphics.fill(boxX - BORDER, boxY - BORDER,
-                      boxX + BOX_WIDTH + BORDER, boxY + BOX_HEIGHT + BORDER, 0xFF888888);
+                      boxX + BOX_WIDTH + BORDER, boxY + BOX_HEIGHT + BORDER, 0xFF777777);
         graphics.fill(boxX, boxY, boxX + BOX_WIDTH, boxY + BOX_HEIGHT, 0xF0101010);
 
         // Header Title
         String tabTitle = (activeTab == Tab.SHOP) ? "Marketplace Shop" :
                           (activeTab == Tab.SETTINGS) ? "Economy Settings & Price Multipliers" : "Professions & Careers";
-        graphics.centeredText(this.getFont(), Component.literal(tabTitle), this.width / 2, boxY + 7, 0xFFDD55);
-        graphics.fill(boxX + 8, boxY + 18, boxX + BOX_WIDTH - 8, boxY + 19, 0xFF444444);
+        graphics.centeredText(this.getFont(), Component.literal(tabTitle), this.width / 2, boxY + 6, 0xFFDD55);
+        graphics.fill(boxX + 6, boxY + 18, boxX + BOX_WIDTH - 6, boxY + 19, 0xFF444444);
 
         if (activeTab == Tab.SHOP) {
+            // Draw inner scroll container viewport
+            graphics.fill(boxX + 5, boxY + 22, boxX + BOX_WIDTH - 5, boxY + BOX_HEIGHT - 6, 0xFF0A0A0A);
+            graphics.fill(boxX + 4, boxY + 21, boxX + BOX_WIDTH - 4, boxY + 22, 0xFF333333);
             renderShopRows(graphics, boxX, boxY);
         } else if (activeTab == Tab.SETTINGS) {
             renderSettingsTab(graphics, boxX, boxY);
@@ -226,17 +251,22 @@ public class EconomicsBoxScreen extends Screen {
     }
 
     private void renderShopRows(GuiGraphicsExtractor graphics, int boxX, int boxY) {
-        List<ShopItem> items = ShopTable.getItems();
-        int startY = boxY + 22;
+        List<ShopItem> sortedItems = getSortedShopItems();
+        int startY = boxY + 23;
         int rowHeight = 33;
 
-        int visibleCount = Math.min(4, items.size() - scrollOffset);
+        int visibleCount = Math.min(4, sortedItems.size() - scrollOffset);
         for (int i = 0; i < visibleCount; i++) {
-            ShopItem shopItem = items.get(scrollOffset + i);
+            ShopItem shopItem = sortedItems.get(scrollOffset + i);
             int rowY = startY + (i * rowHeight);
+            boolean isUnlocked = ClientEconomyState.isUnlocked(shopItem.id());
+
+            // Row background tint (unlocked: subtle dark grey, locked: darker grey)
+            int bgTint = isUnlocked ? 0xFF181818 : 0xFF101010;
+            graphics.fill(boxX + 6, rowY + 1, boxX + BOX_WIDTH - 28, rowY + rowHeight - 2, bgTint);
 
             // Row separator line
-            graphics.fill(boxX + 6, rowY + rowHeight - 1, boxX + BOX_WIDTH - 26, rowY + rowHeight, 0xFF252525);
+            graphics.fill(boxX + 6, rowY + rowHeight - 2, boxX + BOX_WIDTH - 28, rowY + rowHeight - 1, 0xFF282828);
 
             // Render Item Stack Icon
             Item mcItem = BuiltInRegistries.ITEM.getValue(Identifier.fromNamespaceAndPath("minecraft", shopItem.id()));
@@ -244,12 +274,12 @@ public class EconomicsBoxScreen extends Screen {
                 graphics.item(new ItemStack(mcItem), boxX + 8, rowY + 7);
             }
 
-            // Render Item Name (Component.literal with drop shadow enabled)
-            graphics.text(this.getFont(), Component.literal(shopItem.displayName()), boxX + 28, rowY + 5, 0xFFFFFF, true);
+            // Unlocked items = Bright White (0xFFFFFF); Locked items = Dimmed Grey (0x777777)
+            int nameColor = isUnlocked ? 0xFFFFFF : 0x777777;
+            graphics.text(this.getFont(), Component.literal(shopItem.displayName()), boxX + 28, rowY + 5, nameColor, true);
 
-            // Render Status text (Unlocked vs Locked)
-            boolean isUnlocked = ClientEconomyState.isUnlocked(shopItem.id());
-            String statusStr = isUnlocked ? "§aUnlocked" : "§cLocked";
+            // Status indicator
+            String statusStr = isUnlocked ? "§a✔ Unlocked" : "§7🔒 Locked";
             graphics.text(this.getFont(), Component.literal(statusStr), boxX + 28, rowY + 17, 0xAAAAAA, true);
         }
     }
@@ -258,13 +288,13 @@ public class EconomicsBoxScreen extends Screen {
         int startY = boxY + 38;
 
         graphics.text(this.getFont(), Component.literal("Sell Price Multiplier (Base × Sell):"), boxX + 12, startY + 4, 0xFFFFFF, true);
-        graphics.text(this.getFont(), Component.literal(ClientEconomyState.getSellMultiplier() + "x"), boxX + 265, startY + 4, 0xFFDD55, true);
+        graphics.text(this.getFont(), Component.literal(ClientEconomyState.getSellMultiplier() + "x"), boxX + 270, startY + 4, 0xFFDD55, true);
 
         graphics.text(this.getFont(), Component.literal("Buy Price Multiplier (Base × Buy):"), boxX + 12, startY + 34, 0xFFFFFF, true);
-        graphics.text(this.getFont(), Component.literal(ClientEconomyState.getBuyMultiplier() + "x"), boxX + 265, startY + 34, 0xFFDD55, true);
+        graphics.text(this.getFont(), Component.literal(ClientEconomyState.getBuyMultiplier() + "x"), boxX + 270, startY + 34, 0xFFDD55, true);
 
         graphics.text(this.getFont(), Component.literal("Unlock Multiplier (Base × Unlock):"), boxX + 12, startY + 64, 0xFFFFFF, true);
-        graphics.text(this.getFont(), Component.literal(ClientEconomyState.getUnlockMultiplier() + "x"), boxX + 265, startY + 64, 0xFFDD55, true);
+        graphics.text(this.getFont(), Component.literal(ClientEconomyState.getUnlockMultiplier() + "x"), boxX + 270, startY + 64, 0xFFDD55, true);
     }
 
     private void renderProfessionTab(GuiGraphicsExtractor graphics, int boxX, int boxY) {
@@ -276,8 +306,8 @@ public class EconomicsBoxScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         if (activeTab == Tab.SHOP) {
-            List<ShopItem> items = ShopTable.getItems();
-            int maxOffset = Math.max(0, items.size() - 4);
+            List<ShopItem> sortedItems = getSortedShopItems();
+            int maxOffset = Math.max(0, sortedItems.size() - 4);
             if (verticalAmount < 0 && scrollOffset < maxOffset) {
                 scrollOffset++;
                 rebuildWidgets();

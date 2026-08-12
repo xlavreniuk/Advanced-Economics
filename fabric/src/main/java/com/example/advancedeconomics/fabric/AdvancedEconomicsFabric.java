@@ -25,10 +25,7 @@ import java.util.Set;
 
 /**
  * Main Fabric Initializer (v0.10).
- * Handles server-authoritative logic:
- * - Economy, Profession, Shop Settings & Player Unlocks
- * - Automatic inventory ownership item unlocks
- * - Secure transaction packet handling (Buy, Sell, Unlock, Settings update)
+ * Handles server-authoritative logic & auto-unlock inventory scanning on world load.
  */
 public class AdvancedEconomicsFabric implements ModInitializer {
 
@@ -78,9 +75,10 @@ public class AdvancedEconomicsFabric implements ModInitializer {
             PlayerUnlockManager.save(aeDataDir);
         });
 
-        // 4. Sync on Player Join
+        // 4. Sync & Auto-unlock inventory items on Player Join / World Load
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayer player = handler.player;
+            scanAndUnlockInventory(player);
             syncPlayerState(player);
         });
 
@@ -119,7 +117,7 @@ public class AdvancedEconomicsFabric implements ModInitializer {
             ShopItem shopItem = ShopTable.findById(payload.itemId());
             if (player != null && shopItem != null) {
                 Item mcItem = BuiltInRegistries.ITEM.getValue(Identifier.fromNamespaceAndPath("minecraft", shopItem.id()));
-                if (mcItem != null && player.getInventory().contains(new ItemStack(mcItem))) {
+                if (mcItem != null) {
                     // Remove 1 item from player inventory
                     for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
                         ItemStack stack = player.getInventory().getItem(i);
@@ -142,7 +140,6 @@ public class AdvancedEconomicsFabric implements ModInitializer {
                 ShopSettings.setBuyMultiplier(payload.buyMultiplier());
                 ShopSettings.setUnlockMultiplier(payload.unlockMultiplier());
 
-                // Sync new multipliers to all online players
                 for (ServerPlayer onlinePlayer : context.server().getPlayerList().getPlayers()) {
                     ServerPlayNetworking.send(onlinePlayer, new SyncSettingsPayload(
                             ShopSettings.getSellMultiplier(),
@@ -153,26 +150,12 @@ public class AdvancedEconomicsFabric implements ModInitializer {
             }
         });
 
-        // 6. Automatic Ownership Inventory Scanner (Unlocks items player has ever owned)
+        // 6. Continuous Inventory Scanner (Every 20 ticks / 1 second)
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             tickCounter++;
-            if (tickCounter % 20 == 0) { // Every 1 second
+            if (tickCounter % 20 == 0) {
                 for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-                    boolean newlyUnlocked = false;
-                    for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-                        ItemStack stack = player.getInventory().getItem(i);
-                        if (!stack.isEmpty()) {
-                            Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
-                            if (id != null) {
-                                String itemId = id.getPath();
-                                if (ShopTable.findById(itemId) != null && !PlayerUnlockManager.isUnlocked(player.getUUID(), itemId)) {
-                                    PlayerUnlockManager.unlock(player.getUUID(), itemId);
-                                    newlyUnlocked = true;
-                                }
-                            }
-                        }
-                    }
-                    if (newlyUnlocked) {
+                    if (scanAndUnlockInventory(player)) {
                         syncPlayerState(player);
                     }
                 }
@@ -180,6 +163,25 @@ public class AdvancedEconomicsFabric implements ModInitializer {
         });
 
         AdvancedEconomicsCommon.LOGGER.info("Advanced Economics Fabric fully initialized.");
+    }
+
+    private boolean scanAndUnlockInventory(ServerPlayer player) {
+        if (player == null) return false;
+        boolean newlyUnlocked = false;
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (!stack.isEmpty()) {
+                Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+                if (id != null) {
+                    String itemId = id.getPath();
+                    if (ShopTable.findById(itemId) != null && !PlayerUnlockManager.isUnlocked(player.getUUID(), itemId)) {
+                        PlayerUnlockManager.unlock(player.getUUID(), itemId);
+                        newlyUnlocked = true;
+                    }
+                }
+            }
+        }
+        return newlyUnlocked;
     }
 
     public static void syncPlayerState(ServerPlayer player) {
