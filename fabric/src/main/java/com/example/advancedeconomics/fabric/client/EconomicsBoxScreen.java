@@ -23,11 +23,11 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Advanced Economics Box Screen (v0.31).
+ * Advanced Economics Box Screen (v0.32).
  *
  * Tab Button Styling:
- * - Selected tab button renders in default bright Minecraft button style.
- * - Non-selected tab buttons render with a sleek dark background (0xFF141414) and 100% bright white text (0xFFFFFFFF).
+ * - Selected active tab button renders in default bright Minecraft button texture (active = true).
+ * - Non-selected tab buttons render in Minecraft's official locked button texture (active = false) with bright white text (0xFFFFFFFF).
  */
 public class EconomicsBoxScreen extends Screen {
 
@@ -100,15 +100,21 @@ public class EconomicsBoxScreen extends Screen {
         int visualLeft  = boxX - BORDER;
         int visualRight = boxX + BOX_WIDTH + BORDER;
 
-        // Header Tab Buttons
-        addRenderableWidget(Button.builder(Component.literal("Shop"), btn -> switchTab(Tab.SHOP))
-                .bounds(visualLeft, btnY, BTN_WIDTH, BTN_HEIGHT).build());
+        // Header Tab Buttons: Set active = (activeTab == tab) so inactive tabs render Minecraft's locked button texture!
+        Button shopTabBtn = Button.builder(Component.literal("Shop"), btn -> switchTab(Tab.SHOP))
+                .bounds(visualLeft, btnY, BTN_WIDTH, BTN_HEIGHT).build();
+        shopTabBtn.active = (activeTab == Tab.SHOP);
+        addRenderableWidget(shopTabBtn);
 
-        addRenderableWidget(Button.builder(Component.literal("Profession"), btn -> switchTab(Tab.PROFESSION))
-                .bounds(visualLeft + BTN_WIDTH + BTN_GAP, btnY, BTN_WIDTH, BTN_HEIGHT).build());
+        Button profTabBtn = Button.builder(Component.literal("Profession"), btn -> switchTab(Tab.PROFESSION))
+                .bounds(visualLeft + BTN_WIDTH + BTN_GAP, btnY, BTN_WIDTH, BTN_HEIGHT).build();
+        profTabBtn.active = (activeTab == Tab.PROFESSION);
+        addRenderableWidget(profTabBtn);
 
-        addRenderableWidget(Button.builder(Component.literal("Settings"), btn -> switchTab(Tab.SETTINGS))
-                .bounds(visualLeft + (BTN_WIDTH + BTN_GAP) * 2, btnY, BTN_WIDTH, BTN_HEIGHT).build());
+        Button setTabBtn = Button.builder(Component.literal("Settings"), btn -> switchTab(Tab.SETTINGS))
+                .bounds(visualLeft + (BTN_WIDTH + BTN_GAP) * 2, btnY, BTN_WIDTH, BTN_HEIGHT).build();
+        setTabBtn.active = (activeTab == Tab.SETTINGS);
+        addRenderableWidget(setTabBtn);
 
         addRenderableWidget(Button.builder(Component.literal("✕"), btn -> this.onClose())
                 .bounds(visualRight - CLOSE_WIDTH, btnY, CLOSE_WIDTH, BTN_HEIGHT)
@@ -353,7 +359,7 @@ public class EconomicsBoxScreen extends Screen {
         // Pass 4: Draw all interactive widgets & buttons on top!
         super.extractRenderState(graphics, mouseX, mouseY, delta);
 
-        // Pass 5: Render dark background & 100% bright white text for non-selected tab buttons
+        // Pass 5: Overlay bright white text (0xFFFFFFFF) over non-selected tabs' locked button texture
         int btnY = boxY - BTN_HEIGHT - BTN_MARGIN;
         int visualLeft = boxX - BORDER;
 
@@ -362,18 +368,12 @@ public class EconomicsBoxScreen extends Screen {
         int setX  = visualLeft + (BTN_WIDTH + BTN_GAP) * 2;
 
         if (activeTab != Tab.SHOP) {
-            graphics.fill(shopX, btnY, shopX + BTN_WIDTH, btnY + BTN_HEIGHT, 0xFF141414);
-            graphics.fill(shopX, btnY, shopX + BTN_WIDTH, btnY + 1, 0xFF3D3D3D);
             graphics.centeredText(this.getFont(), Component.literal("Shop"), shopX + BTN_WIDTH / 2, btnY + 5, 0xFFFFFFFF);
         }
         if (activeTab != Tab.PROFESSION) {
-            graphics.fill(profX, btnY, profX + BTN_WIDTH, btnY + BTN_HEIGHT, 0xFF141414);
-            graphics.fill(profX, btnY, profX + BTN_WIDTH, btnY + 1, 0xFF3D3D3D);
             graphics.centeredText(this.getFont(), Component.literal("Profession"), profX + BTN_WIDTH / 2, btnY + 5, 0xFFFFFFFF);
         }
         if (activeTab != Tab.SETTINGS) {
-            graphics.fill(setX, btnY, setX + BTN_WIDTH, btnY + BTN_HEIGHT, 0xFF141414);
-            graphics.fill(setX, btnY, setX + BTN_WIDTH, btnY + 1, 0xFF3D3D3D);
             graphics.centeredText(this.getFont(), Component.literal("Settings"), setX + BTN_WIDTH / 2, btnY + 5, 0xFFFFFFFF);
         }
     }
@@ -563,9 +563,33 @@ public class EconomicsBoxScreen extends Screen {
         int boxX = (this.width  - BOX_WIDTH)  / 2;
         int boxY = (this.height - BOX_HEIGHT) / 2;
 
-        int trackX = boxX + BOX_WIDTH - 18;
+        int btnY = boxY - BTN_HEIGHT - BTN_MARGIN;
+        int visualLeft = boxX - BORDER;
+
+        int shopX = visualLeft;
+        int profX = visualLeft + BTN_WIDTH + BTN_GAP;
+        int setX  = visualLeft + (BTN_WIDTH + BTN_GAP) * 2;
+
         double mx = event.x();
         double my = event.y();
+
+        // Handle clicks on inactive tab buttons
+        if (my >= btnY && my <= btnY + BTN_HEIGHT) {
+            if (mx >= shopX && mx <= shopX + BTN_WIDTH && activeTab != Tab.SHOP) {
+                switchTab(Tab.SHOP);
+                return true;
+            }
+            if (mx >= profX && mx <= profX + BTN_WIDTH && activeTab != Tab.PROFESSION) {
+                switchTab(Tab.PROFESSION);
+                return true;
+            }
+            if (mx >= setX && mx <= setX + BTN_WIDTH && activeTab != Tab.SETTINGS) {
+                switchTab(Tab.SETTINGS);
+                return true;
+            }
+        }
+
+        int trackX = boxX + BOX_WIDTH - 18;
 
         if (activeTab == Tab.SHOP) {
             int trackY = boxY + 38;
