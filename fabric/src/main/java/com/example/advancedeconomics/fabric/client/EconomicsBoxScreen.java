@@ -61,7 +61,7 @@ public class EconomicsBoxScreen extends Screen {
         QTY_HIGH    // # (most owned first)
     }
 
-    private SortMode sortMode = SortMode.NAME_AZ;
+    private SortMode sortMode = SortMode.PRICE_LOW;
 
     private EditBox searchBox;
     private String searchQuery = "";
@@ -224,11 +224,11 @@ public class EconomicsBoxScreen extends Screen {
         };
         addRenderableWidget(Button.builder(Component.literal(sortIcon), btn -> {
             sortMode = switch (sortMode) {
-                case NAME_AZ    -> SortMode.NAME_ZA;
-                case NAME_ZA    -> SortMode.PRICE_LOW;
                 case PRICE_LOW  -> SortMode.PRICE_HIGH;
-                case PRICE_HIGH -> SortMode.QTY_HIGH;
-                case QTY_HIGH   -> SortMode.NAME_AZ;
+                case PRICE_HIGH -> SortMode.NAME_AZ;
+                case NAME_AZ    -> SortMode.NAME_ZA;
+                case NAME_ZA    -> SortMode.QTY_HIGH;
+                case QTY_HIGH   -> SortMode.PRICE_LOW;
             };
             scrollOffset = 0;
             rebuildWidgets();

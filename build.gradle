@@ -30,22 +30,33 @@ task copyArtifactsToBuildFolder {
     description = "Collects built mod jars and deploys to Prism Launcher"
     dependsOn subprojects.collect { it.tasks.matching { t -> t.name == 'remapJar' || t.name == 'jar' } }
 
+    doFirst {
+        // Pre-clean Loom's output dir so old versions never accumulate
+        project(':fabric').layout.buildDirectory.dir("libs").get().asFile.deleteDir()
+    }
+
     doLast {
         copy {
             from project(':common').layout.buildDirectory.dir("libs")
             into "${rootDir}/build/source"
         }
-        // Loom produces a remapped jar - use the main jar from fabric/build/libs
+
+        // Loom produces a remapped jar — use the main jar from fabric/build/libs
         def fabricLibsDir = project(':fabric').layout.buildDirectory.dir("libs").get().asFile
         if (fabricLibsDir.exists()) {
+            // Wipe build/fabric/ first so it never accumulates historical versions
+            def buildFabricDir = file("${rootDir}/build/fabric")
+            buildFabricDir.deleteDir()
+            buildFabricDir.mkdirs()
             copy {
                 from fabricLibsDir
-                into "${rootDir}/build/fabric"
+                into buildFabricDir
                 include "*.jar"
                 exclude "*-dev.jar"
                 exclude "*-sources.jar"
             }
         }
+
         copy {
             from project(':neoforge').layout.buildDirectory.dir("libs")
             into "${rootDir}/build/neoforge"
