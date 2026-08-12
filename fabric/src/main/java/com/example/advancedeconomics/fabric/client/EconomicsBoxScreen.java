@@ -21,11 +21,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Advanced Economics Box Screen (v0.16).
+ * Advanced Economics Box Screen (v0.17).
  *
- * Improvements:
- * - Sell button is darkened/disabled when player has 0 items in inventory, and active/bright when player has 1+ items.
- * - Settings tab text labels fitted perfectly with row backgrounds, gold values, and explanatory footnote.
+ * Fix: Explicit 32-bit ARGB alpha mask (0xFF) on all text color constants
+ * ensuring item names, settings text, headers, and status labels render with 100% opacity.
  */
 public class EconomicsBoxScreen extends Screen {
 
@@ -266,12 +265,12 @@ public class EconomicsBoxScreen extends Screen {
             renderDraggableScrollbar(graphics, boxX, boxY);
         } else if (activeTab == Tab.SETTINGS) {
             String tabTitle = "Economy Settings & Price Multipliers";
-            graphics.centeredText(this.getFont(), Component.literal(tabTitle), this.width / 2, boxY + 6, 0xFFDD55);
+            graphics.centeredText(this.getFont(), Component.literal(tabTitle), this.width / 2, boxY + 6, 0xFFFFDD55);
             graphics.fill(boxX + 6, boxY + 18, boxX + BOX_WIDTH - 6, boxY + 19, 0xFF444444);
             renderSettingsTab(graphics, boxX, boxY);
         } else if (activeTab == Tab.PROFESSION) {
             String tabTitle = "Professions & Careers";
-            graphics.centeredText(this.getFont(), Component.literal(tabTitle), this.width / 2, boxY + 6, 0xFFDD55);
+            graphics.centeredText(this.getFont(), Component.literal(tabTitle), this.width / 2, boxY + 6, 0xFFFFDD55);
             graphics.fill(boxX + 6, boxY + 18, boxX + BOX_WIDTH - 6, boxY + 19, 0xFF444444);
             renderProfessionTab(graphics, boxX, boxY);
         }
@@ -311,13 +310,13 @@ public class EconomicsBoxScreen extends Screen {
                 graphics.item(new ItemStack(mcItem), boxX + 8, rowY + 7);
             }
 
-            // Unlocked = Bright White (0xFFFFFF); Locked = Dimmed Grey (0x777777)
-            int nameColor = isUnlocked ? 0xFFFFFF : 0x777777;
+            // Unlocked = Bright White (0xFFFFFFFF); Locked = Dimmed Grey (0xFF777777)
+            int nameColor = isUnlocked ? 0xFFFFFFFF : 0xFF777777;
             graphics.text(this.getFont(), Component.literal(shopItem.displayName()), boxX + 28, rowY + 5, nameColor, true);
 
             // Status indicator
             String statusStr = isUnlocked ? "§a✔ Unlocked" : "§7🔒 Locked";
-            graphics.text(this.getFont(), Component.literal(statusStr), boxX + 28, rowY + 17, 0xAAAAAA, true);
+            graphics.text(this.getFont(), Component.literal(statusStr), boxX + 28, rowY + 17, 0xFFAAAAAA, true);
         }
     }
 
@@ -350,27 +349,27 @@ public class EconomicsBoxScreen extends Screen {
 
         // Row 1: Sell Multiplier
         graphics.fill(boxX + 10, r1 - 3, boxX + BOX_WIDTH - 10, r1 + 19, 0xFF181818);
-        graphics.text(this.getFont(), Component.literal("Sell Multiplier:"), boxX + 16, r1 + 3, 0xFFFFFF, true);
-        graphics.text(this.getFont(), Component.literal("§e" + ClientEconomyState.getSellMultiplier() + "x"), boxX + 165, r1 + 3, 0xFFDD55, true);
+        graphics.text(this.getFont(), Component.literal("Sell Multiplier:"), boxX + 16, r1 + 3, 0xFFFFFFFF, true);
+        graphics.text(this.getFont(), Component.literal("§e" + ClientEconomyState.getSellMultiplier() + "x"), boxX + 165, r1 + 3, 0xFFFFDD55, true);
 
         // Row 2: Buy Multiplier
         graphics.fill(boxX + 10, r2 - 3, boxX + BOX_WIDTH - 10, r2 + 19, 0xFF181818);
-        graphics.text(this.getFont(), Component.literal("Buy Multiplier:"), boxX + 16, r2 + 3, 0xFFFFFF, true);
-        graphics.text(this.getFont(), Component.literal("§e" + ClientEconomyState.getBuyMultiplier() + "x"), boxX + 165, r2 + 3, 0xFFDD55, true);
+        graphics.text(this.getFont(), Component.literal("Buy Multiplier:"), boxX + 16, r2 + 3, 0xFFFFFFFF, true);
+        graphics.text(this.getFont(), Component.literal("§e" + ClientEconomyState.getBuyMultiplier() + "x"), boxX + 165, r2 + 3, 0xFFFFDD55, true);
 
         // Row 3: Unlock Multiplier
         graphics.fill(boxX + 10, r3 - 3, boxX + BOX_WIDTH - 10, r3 + 19, 0xFF181818);
-        graphics.text(this.getFont(), Component.literal("Unlock Multiplier:"), boxX + 16, r3 + 3, 0xFFFFFF, true);
-        graphics.text(this.getFont(), Component.literal("§e" + ClientEconomyState.getUnlockMultiplier() + "x"), boxX + 165, r3 + 3, 0xFFDD55, true);
+        graphics.text(this.getFont(), Component.literal("Unlock Multiplier:"), boxX + 16, r3 + 3, 0xFFFFFFFF, true);
+        graphics.text(this.getFont(), Component.literal("§e" + ClientEconomyState.getUnlockMultiplier() + "x"), boxX + 165, r3 + 3, 0xFFFFDD55, true);
 
         // Footnote explanation
-        graphics.text(this.getFont(), Component.literal("§7Multiplies item prices in Shop (e.g. 5x base price)."), boxX + 14, startY + 112, 0xAAAAAA, true);
+        graphics.text(this.getFont(), Component.literal("§7Multiplies item prices in Shop (e.g. 5x base price)."), boxX + 14, startY + 112, 0xFFAAAAAA, true);
     }
 
     private void renderProfessionTab(GuiGraphicsExtractor graphics, int boxX, int boxY) {
         String profession = ClientEconomyState.getProfession();
-        graphics.centeredText(this.getFont(), Component.literal("Current Profession: " + profession), this.width / 2, boxY + 45, 0xFFFFFF);
-        graphics.centeredText(this.getFont(), Component.literal("Select a career path to unlock economic perks."), this.width / 2, boxY + 70, 0xAAAAAA);
+        graphics.centeredText(this.getFont(), Component.literal("Current Profession: " + profession), this.width / 2, boxY + 45, 0xFFFFFFFF);
+        graphics.centeredText(this.getFont(), Component.literal("Select a career path to unlock economic perks."), this.width / 2, boxY + 70, 0xFFAAAAAA);
     }
 
     @Override
