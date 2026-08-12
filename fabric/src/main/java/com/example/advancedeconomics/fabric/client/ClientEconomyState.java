@@ -7,7 +7,7 @@ package com.example.advancedeconomics.fabric.client;
 public class ClientEconomyState {
 
     private static long playerBalance = 100L;
-    private static String playerProfession = "None";
+    private static String playerProfession = "No Profession";
 
     public static long getBalance() {
         return playerBalance;
@@ -22,6 +22,6 @@ public class ClientEconomyState {
     }
 
     public static void setProfession(String profession) {
-        playerProfession = (profession != null && !profession.isEmpty()) ? profession : "None";
+        playerProfession = (profession != null && !profession.isEmpty()) ? profession : "No Profession";
     }
 }

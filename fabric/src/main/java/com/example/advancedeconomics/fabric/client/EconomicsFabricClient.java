@@ -23,7 +23,9 @@ import java.lang.reflect.Field;
  * Fabric Client Mod Initializer for Advanced Economics (v0.10).
  *
  * Top row above inventory header (Right to Left):
- * [Profession Box: None]  [$ Balance]  [Economics]
+ * [Profession] -> opens Profession tab
+ * [$ Balance]  -> opens Shop tab
+ * [Economics]  -> opens Shop tab
  */
 public class EconomicsFabricClient implements ClientModInitializer {
 
@@ -82,7 +84,7 @@ public class EconomicsFabricClient implements ClientModInitializer {
                         if (client.gui.screen() instanceof EconomicsBoxScreen) {
                             client.gui.setScreen(null);
                         } else if (client.gui.screen() == null) {
-                            client.gui.setScreen(new EconomicsBoxScreen());
+                            client.gui.setScreen(new EconomicsBoxScreen(EconomicsBoxScreen.Tab.SHOP));
                         }
                     }
                 } catch (Throwable t) {
@@ -108,9 +110,9 @@ public class EconomicsFabricClient implements ClientModInitializer {
                 }
 
                 int btnHeight  = 14;
-                int ecoWidth   = 60;
-                int balWidth   = 50;
-                int profWidth  = 58;
+                int ecoWidth   = 56;
+                int balWidth   = 46;
+                int profWidth  = 72;
                 int gap        = 2;
                 int rowY       = topPos - btnHeight - 2;
 
@@ -126,29 +128,29 @@ public class EconomicsFabricClient implements ClientModInitializer {
                 long currentBalance = ClientEconomyState.getBalance();
                 String profession = ClientEconomyState.getProfession();
 
-                // Profession Box
+                // Profession Button -> Opens Profession Tab
                 Screens.getWidgets(screen).add(
-                        Button.builder(Component.literal(profession), btn -> {})
-                                .bounds(profX, rowY, profWidth, btnHeight)
-                                .build()
+                        Button.builder(Component.literal(profession), btn ->
+                                client.gui.setScreen(new EconomicsBoxScreen(EconomicsBoxScreen.Tab.PROFESSION))
+                        ).bounds(profX, rowY, profWidth, btnHeight).build()
                 );
 
-                // Balance Display Box
+                // Money Balance Button -> Opens Shop Tab
                 Screens.getWidgets(screen).add(
-                        Button.builder(Component.literal("$ " + currentBalance), btn -> {})
-                                .bounds(balX, rowY, balWidth, btnHeight)
-                                .build()
+                        Button.builder(Component.literal("$ " + currentBalance), btn ->
+                                client.gui.setScreen(new EconomicsBoxScreen(EconomicsBoxScreen.Tab.SHOP))
+                        ).bounds(balX, rowY, balWidth, btnHeight).build()
                 );
 
-                // Economics Screen Button
+                // Economics Button -> Opens Shop Tab
                 Screens.getWidgets(screen).add(
                         Button.builder(Component.literal("Economics"), btn ->
-                                client.gui.setScreen(new EconomicsBoxScreen())
+                                client.gui.setScreen(new EconomicsBoxScreen(EconomicsBoxScreen.Tab.SHOP))
                         ).bounds(ecoX, rowY, ecoWidth, btnHeight).build()
                 );
             });
 
-            AdvancedEconomicsCommon.LOGGER.info("Ready. Inventory header widgets active.");
+            AdvancedEconomicsCommon.LOGGER.info("Ready. Interactive inventory header widgets active.");
 
         } catch (Throwable t) {
             AdvancedEconomicsCommon.LOGGER.error("[AE] Client init failed: {}", t.getMessage(), t);

@@ -4,7 +4,7 @@ package com.example.advancedeconomics.profession;
  * Player Professions in Advanced Economics.
  */
 public enum Profession {
-    NONE("None"),
+    NONE("No Profession"),
     FARMER("Farmer"),
     MINER("Miner"),
     MERCHANT("Merchant"),
