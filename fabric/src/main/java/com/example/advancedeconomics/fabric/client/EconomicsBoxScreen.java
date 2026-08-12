@@ -19,15 +19,11 @@ import java.util.List;
 
 /**
  * Advanced Economics Box Screen (v0.10).
- * Features 3 Tabs: SHOP, PROFESSION, SETTINGS.
  *
- * SHOP Tab:
- * - Scrollable column of rows (20 common Minecraft items)
- * - Item Stack icon, item name, prices
- * - Interactive Buy, Sell, and Unlock buttons
- *
- * SETTINGS Tab:
- * - Interactive controls for 1x Sell, 5x Buy, and 10x Unlock price multipliers
+ * Shop Tab Logic:
+ * - Sell button is AVAILABLE EVERYWHERE for all items!
+ * - Buy button becomes available once an item is obtained or unlocked.
+ * - Unlock button (10x cost) unlocks the Buy button for items not yet obtained.
  */
 public class EconomicsBoxScreen extends Screen {
 
@@ -37,8 +33,8 @@ public class EconomicsBoxScreen extends Screen {
         SETTINGS
     }
 
-    private static final int BOX_WIDTH   = 280;
-    private static final int BOX_HEIGHT  = 170;
+    private static final int BOX_WIDTH   = 285;
+    private static final int BOX_HEIGHT  = 175;
     private static final int BORDER      = 2;
     private static final int BTN_WIDTH   = 68;
     private static final int BTN_HEIGHT  = 18;
@@ -47,7 +43,7 @@ public class EconomicsBoxScreen extends Screen {
     private static final int CLOSE_WIDTH = 18;
 
     private Tab activeTab = Tab.SHOP;
-    private int scrollOffset = 0; // Scroll position for Shop rows (0..16)
+    private int scrollOffset = 0;
 
     public EconomicsBoxScreen() {
         this(Tab.SHOP);
@@ -88,7 +84,6 @@ public class EconomicsBoxScreen extends Screen {
                 .bounds(visualRight - CLOSE_WIDTH, btnY, CLOSE_WIDTH, BTN_HEIGHT)
                 .build());
 
-        // Build widgets for active tab
         rebuildTabContent(boxX, boxY);
     }
 
@@ -111,24 +106,24 @@ public class EconomicsBoxScreen extends Screen {
         scrollOffset = Math.min(scrollOffset, maxOffset);
 
         int startY = boxY + 22;
-        int rowHeight = 32;
+        int rowHeight = 33;
 
-        // Scroll Up / Scroll Down buttons
+        // Scroll Up / Down buttons
         addRenderableWidget(Button.builder(Component.literal("▲"), btn -> {
             if (scrollOffset > 0) {
                 scrollOffset--;
                 rebuildWidgets();
             }
-        }).bounds(boxX + BOX_WIDTH - 24, startY, 20, 16).build());
+        }).bounds(boxX + BOX_WIDTH - 22, startY, 18, 16).build());
 
         addRenderableWidget(Button.builder(Component.literal("▼"), btn -> {
             if (scrollOffset < maxOffset) {
                 scrollOffset++;
                 rebuildWidgets();
             }
-        }).bounds(boxX + BOX_WIDTH - 24, startY + 120, 20, 16).build());
+        }).bounds(boxX + BOX_WIDTH - 22, startY + 124, 18, 16).build());
 
-        // Build up to 4 visible rows
+        // Build 4 visible item rows
         int visibleCount = Math.min(4, items.size() - scrollOffset);
         for (int i = 0; i < visibleCount; i++) {
             final ShopItem shopItem = items.get(scrollOffset + i);
@@ -139,21 +134,22 @@ public class EconomicsBoxScreen extends Screen {
             long buyPrice    = shopItem.basePrice() * ClientEconomyState.getBuyMultiplier();
             long unlockPrice = shopItem.basePrice() * ClientEconomyState.getUnlockMultiplier();
 
+            // 1. SELL BUTTON — AVAILABLE EVERYWHERE for all items!
+            addRenderableWidget(Button.builder(Component.literal("Sell $" + sellPrice), btn -> {
+                ClientPlayNetworking.send(new RequestSellPayload(shopItem.id()));
+            }).bounds(boxX + 138, rowY + 7, 56, 18).build());
+
+            // 2. BUY / UNLOCK BUTTON
             if (isUnlocked) {
-                // [Buy] button
+                // Buy button available when item is unlocked / obtained
                 addRenderableWidget(Button.builder(Component.literal("Buy $" + buyPrice), btn -> {
                     ClientPlayNetworking.send(new RequestBuyPayload(shopItem.id()));
-                }).bounds(boxX + 130, rowY + 6, 56, 18).build());
-
-                // [Sell] button
-                addRenderableWidget(Button.builder(Component.literal("Sell $" + sellPrice), btn -> {
-                    ClientPlayNetworking.send(new RequestSellPayload(shopItem.id()));
-                }).bounds(boxX + 190, rowY + 6, 58, 18).build());
+                }).bounds(boxX + 198, rowY + 7, 58, 18).build());
             } else {
-                // [Unlock 10x] button
+                // Unlock button (10x price) to unlock buying
                 addRenderableWidget(Button.builder(Component.literal("Unlock $" + unlockPrice), btn -> {
                     ClientPlayNetworking.send(new RequestUnlockPayload(shopItem.id()));
-                }).bounds(boxX + 130, rowY + 6, 118, 18).build());
+                }).bounds(boxX + 198, rowY + 7, 66, 18).build());
             }
         }
     }
@@ -168,29 +164,29 @@ public class EconomicsBoxScreen extends Screen {
         // Sell Multiplier [-] [+]
         addRenderableWidget(Button.builder(Component.literal("-"), btn -> {
             sendUpdateSettings(Math.max(1, sellM - 1), buyM, unlockM);
-        }).bounds(boxX + 175, startY, 20, 18).build());
+        }).bounds(boxX + 215, startY, 20, 18).build());
 
         addRenderableWidget(Button.builder(Component.literal("+"), btn -> {
             sendUpdateSettings(sellM + 1, buyM, unlockM);
-        }).bounds(boxX + 200, startY, 20, 18).build());
+        }).bounds(boxX + 240, startY, 20, 18).build());
 
         // Buy Multiplier [-] [+]
         addRenderableWidget(Button.builder(Component.literal("-"), btn -> {
             sendUpdateSettings(sellM, Math.max(1, buyM - 1), unlockM);
-        }).bounds(boxX + 175, startY + 30, 20, 18).build());
+        }).bounds(boxX + 215, startY + 30, 20, 18).build());
 
         addRenderableWidget(Button.builder(Component.literal("+"), btn -> {
             sendUpdateSettings(sellM, buyM + 1, unlockM);
-        }).bounds(boxX + 200, startY + 30, 20, 18).build());
+        }).bounds(boxX + 240, startY + 30, 20, 18).build());
 
         // Unlock Multiplier [-] [+]
         addRenderableWidget(Button.builder(Component.literal("-"), btn -> {
             sendUpdateSettings(sellM, buyM, Math.max(1, unlockM - 1));
-        }).bounds(boxX + 175, startY + 60, 20, 18).build());
+        }).bounds(boxX + 215, startY + 60, 20, 18).build());
 
         addRenderableWidget(Button.builder(Component.literal("+"), btn -> {
             sendUpdateSettings(sellM, buyM, unlockM + 1);
-        }).bounds(boxX + 200, startY + 60, 20, 18).build());
+        }).bounds(boxX + 240, startY + 60, 20, 18).build());
     }
 
     private void sendUpdateSettings(int sellM, int buyM, int unlockM) {
@@ -215,8 +211,8 @@ public class EconomicsBoxScreen extends Screen {
         // Header Title
         String tabTitle = (activeTab == Tab.SHOP) ? "Marketplace Shop" :
                           (activeTab == Tab.SETTINGS) ? "Economy Settings & Price Multipliers" : "Professions & Careers";
-        graphics.centeredText(this.getFont(), tabTitle, this.width / 2, boxY + 8, 0xFFDD55);
-        graphics.fill(boxX + 8, boxY + 19, boxX + BOX_WIDTH - 8, boxY + 20, 0xFF444444);
+        graphics.centeredText(this.getFont(), Component.literal(tabTitle), this.width / 2, boxY + 7, 0xFFDD55);
+        graphics.fill(boxX + 8, boxY + 18, boxX + BOX_WIDTH - 8, boxY + 19, 0xFF444444);
 
         if (activeTab == Tab.SHOP) {
             renderShopRows(graphics, boxX, boxY);
@@ -232,52 +228,49 @@ public class EconomicsBoxScreen extends Screen {
     private void renderShopRows(GuiGraphicsExtractor graphics, int boxX, int boxY) {
         List<ShopItem> items = ShopTable.getItems();
         int startY = boxY + 22;
-        int rowHeight = 32;
+        int rowHeight = 33;
 
         int visibleCount = Math.min(4, items.size() - scrollOffset);
         for (int i = 0; i < visibleCount; i++) {
             ShopItem shopItem = items.get(scrollOffset + i);
             int rowY = startY + (i * rowHeight);
 
-            // Row separator
-            graphics.fill(boxX + 6, rowY + rowHeight - 1, boxX + BOX_WIDTH - 30, rowY + rowHeight, 0xFF222222);
+            // Row separator line
+            graphics.fill(boxX + 6, rowY + rowHeight - 1, boxX + BOX_WIDTH - 26, rowY + rowHeight, 0xFF252525);
 
             // Render Item Stack Icon
             Item mcItem = BuiltInRegistries.ITEM.getValue(Identifier.fromNamespaceAndPath("minecraft", shopItem.id()));
             if (mcItem != null && mcItem != Items.AIR) {
-                graphics.item(new ItemStack(mcItem), boxX + 10, rowY + 6);
+                graphics.item(new ItemStack(mcItem), boxX + 8, rowY + 7);
             }
 
-            // Render Item Name
-            graphics.text(this.getFont(), shopItem.displayName(), boxX + 32, rowY + 4, 0xFFFFFF);
+            // Render Item Name (Component.literal with drop shadow enabled)
+            graphics.text(this.getFont(), Component.literal(shopItem.displayName()), boxX + 28, rowY + 5, 0xFFFFFF, true);
 
-            // Render Status & Base Price info
+            // Render Status text (Unlocked vs Locked)
             boolean isUnlocked = ClientEconomyState.isUnlocked(shopItem.id());
-            if (isUnlocked) {
-                graphics.text(this.getFont(), "§aUnlocked §7(Base: $" + shopItem.basePrice() + ")", boxX + 32, rowY + 16, 0xAAAAAA);
-            } else {
-                graphics.text(this.getFont(), "§cLocked §7(Base: $" + shopItem.basePrice() + ")", boxX + 32, rowY + 16, 0xAAAAAA);
-            }
+            String statusStr = isUnlocked ? "§aUnlocked" : "§cLocked";
+            graphics.text(this.getFont(), Component.literal(statusStr), boxX + 28, rowY + 17, 0xAAAAAA, true);
         }
     }
 
     private void renderSettingsTab(GuiGraphicsExtractor graphics, int boxX, int boxY) {
         int startY = boxY + 38;
 
-        graphics.text(this.getFont(), "Sell Price Multiplier (Base × Sell):", boxX + 12, startY + 4, 0xFFFFFF);
-        graphics.text(this.getFont(), "§e" + ClientEconomyState.getSellMultiplier() + "x", boxX + 226, startY + 4, 0xFFDD55);
+        graphics.text(this.getFont(), Component.literal("Sell Price Multiplier (Base × Sell):"), boxX + 12, startY + 4, 0xFFFFFF, true);
+        graphics.text(this.getFont(), Component.literal(ClientEconomyState.getSellMultiplier() + "x"), boxX + 265, startY + 4, 0xFFDD55, true);
 
-        graphics.text(this.getFont(), "Buy Price Multiplier (Base × Buy):", boxX + 12, startY + 34, 0xFFFFFF);
-        graphics.text(this.getFont(), "§e" + ClientEconomyState.getBuyMultiplier() + "x", boxX + 226, startY + 34, 0xFFDD55);
+        graphics.text(this.getFont(), Component.literal("Buy Price Multiplier (Base × Buy):"), boxX + 12, startY + 34, 0xFFFFFF, true);
+        graphics.text(this.getFont(), Component.literal(ClientEconomyState.getBuyMultiplier() + "x"), boxX + 265, startY + 34, 0xFFDD55, true);
 
-        graphics.text(this.getFont(), "Unlock Multiplier (Base × Unlock):", boxX + 12, startY + 64, 0xFFFFFF);
-        graphics.text(this.getFont(), "§e" + ClientEconomyState.getUnlockMultiplier() + "x", boxX + 226, startY + 64, 0xFFDD55);
+        graphics.text(this.getFont(), Component.literal("Unlock Multiplier (Base × Unlock):"), boxX + 12, startY + 64, 0xFFFFFF, true);
+        graphics.text(this.getFont(), Component.literal(ClientEconomyState.getUnlockMultiplier() + "x"), boxX + 265, startY + 64, 0xFFDD55, true);
     }
 
     private void renderProfessionTab(GuiGraphicsExtractor graphics, int boxX, int boxY) {
         String profession = ClientEconomyState.getProfession();
-        graphics.centeredText(this.getFont(), "Current Profession: §e" + profession, this.width / 2, boxY + 45, 0xFFFFFF);
-        graphics.centeredText(this.getFont(), "§7Select a career path to unlock economic perks.", this.width / 2, boxY + 70, 0xAAAAAA);
+        graphics.centeredText(this.getFont(), Component.literal("Current Profession: " + profession), this.width / 2, boxY + 45, 0xFFFFFF);
+        graphics.centeredText(this.getFont(), Component.literal("Select a career path to unlock economic perks."), this.width / 2, boxY + 70, 0xAAAAAA);
     }
 
     @Override
