@@ -5,6 +5,7 @@ import com.example.advancedeconomics.shop.ShopItem;
 import com.example.advancedeconomics.shop.ShopTable;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -21,12 +22,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Advanced Economics Box Screen (v0.13).
+ * Advanced Economics Box Screen (v0.14).
  *
- * Layout & Interaction Improvements:
- * - Search bar allows long queries (maxLength = 256).
- * - Keypresses while focused on search consume all keys so typing 'N' NEVER closes the screen.
- * - Slim 6px web scrollbar removes wasted space on the right and maximizes item row width.
+ * Fixes:
+ * - Search box maintains focus while typing; responder updates row buttons without destroying searchBox.
+ * - Keypresses while search is focused consume all keys, preventing 'N' from closing screen.
+ * - Settings tab text rendered cleanly on top layer with explicit row backgrounds & gold multiplier values.
  */
 public class EconomicsBoxScreen extends Screen {
 
@@ -51,6 +52,7 @@ public class EconomicsBoxScreen extends Screen {
 
     private EditBox searchBox;
     private String searchQuery = "";
+    private final List<AbstractWidget> rowWidgets = new ArrayList<>();
 
     public EconomicsBoxScreen() {
         this(Tab.SHOP);
@@ -98,19 +100,16 @@ public class EconomicsBoxScreen extends Screen {
         int visualLeft  = boxX - BORDER;
         int visualRight = boxX + BOX_WIDTH + BORDER;
 
-        // [Shop] Tab Button
+        // Header Tab Buttons
         addRenderableWidget(Button.builder(Component.literal("Shop"), btn -> switchTab(Tab.SHOP))
                 .bounds(visualLeft, btnY, BTN_WIDTH, BTN_HEIGHT).build());
 
-        // [Profession] Tab Button
         addRenderableWidget(Button.builder(Component.literal("Profession"), btn -> switchTab(Tab.PROFESSION))
                 .bounds(visualLeft + BTN_WIDTH + BTN_GAP, btnY, BTN_WIDTH, BTN_HEIGHT).build());
 
-        // [Settings] Tab Button
         addRenderableWidget(Button.builder(Component.literal("Settings"), btn -> switchTab(Tab.SETTINGS))
                 .bounds(visualLeft + (BTN_WIDTH + BTN_GAP) * 2, btnY, BTN_WIDTH, BTN_HEIGHT).build());
 
-        // [✕] Close Button
         addRenderableWidget(Button.builder(Component.literal("✕"), btn -> this.onClose())
                 .bounds(visualRight - CLOSE_WIDTH, btnY, CLOSE_WIDTH, BTN_HEIGHT)
                 .build());
@@ -124,6 +123,7 @@ public class EconomicsBoxScreen extends Screen {
     }
 
     private void rebuildTabContent(int boxX, int boxY) {
+        clearRowWidgets();
         if (activeTab == Tab.SHOP) {
             buildShopTabWidgets(boxX, boxY);
         } else if (activeTab == Tab.SETTINGS) {
@@ -131,24 +131,40 @@ public class EconomicsBoxScreen extends Screen {
         }
     }
 
+    private void clearRowWidgets() {
+        for (AbstractWidget w : rowWidgets) {
+            this.removeWidget(w);
+        }
+        rowWidgets.clear();
+    }
+
     private void buildShopTabWidgets(int boxX, int boxY) {
-        // Search Box placed cleanly at top left (boxY + 5)
         int searchX = boxX + 6;
         int searchY = boxY + 5;
         int searchW = 165;
         int searchH = 16;
 
+        boolean wasFocused = (searchBox != null && searchBox.isFocused());
+
         searchBox = new EditBox(this.getFont(), searchX, searchY, searchW, searchH, Component.literal("Search"));
         searchBox.setHint(Component.literal("Search items..."));
-        searchBox.setMaxLength(256); // Allow typing long search text
+        searchBox.setMaxLength(256);
         searchBox.setValue(this.searchQuery);
+        searchBox.setFocused(wasFocused);
+
         searchBox.setResponder(text -> {
             this.searchQuery = text;
             this.scrollOffset = 0;
-            this.rebuildWidgets();
+            // Update row buttons without destroying searchBox to maintain focus!
+            updateShopRowButtons(boxX, boxY);
         });
-        addRenderableWidget(searchBox);
 
+        addRenderableWidget(searchBox);
+        updateShopRowButtons(boxX, boxY);
+    }
+
+    private void updateShopRowButtons(int boxX, int boxY) {
+        clearRowWidgets();
         List<ShopItem> sortedItems = getSortedShopItems();
         int maxOffset = Math.max(0, sortedItems.size() - 4);
         scrollOffset = Math.clamp(scrollOffset, 0, maxOffset);
@@ -167,53 +183,79 @@ public class EconomicsBoxScreen extends Screen {
             long unlockPrice = shopItem.basePrice() * ClientEconomyState.getUnlockMultiplier();
 
             if (isUnlocked) {
-                // UNLOCKED: BOTH [Sell $X] and [Buy $X] buttons appear
-                addRenderableWidget(Button.builder(Component.literal("Sell $" + sellPrice), btn -> {
+                // [Sell $X]
+                Button sellBtn = Button.builder(Component.literal("Sell $" + sellPrice), btn -> {
                     ClientPlayNetworking.send(new RequestSellPayload(shopItem.id()));
-                }).bounds(boxX + 144, rowY + 6, 58, 18).build());
+                }).bounds(boxX + 144, rowY + 6, 58, 18).build();
+                addRenderableWidget(sellBtn);
+                rowWidgets.add(sellBtn);
 
-                addRenderableWidget(Button.builder(Component.literal("Buy $" + buyPrice), btn -> {
+                // [Buy $X]
+                Button buyBtn = Button.builder(Component.literal("Buy $" + buyPrice), btn -> {
                     ClientPlayNetworking.send(new RequestBuyPayload(shopItem.id()));
-                }).bounds(boxX + 206, rowY + 6, 62, 18).build());
+                }).bounds(boxX + 206, rowY + 6, 62, 18).build();
+                addRenderableWidget(buyBtn);
+                rowWidgets.add(buyBtn);
             } else {
-                // LOCKED: ONLY [Unlock $X] button is visible
-                addRenderableWidget(Button.builder(Component.literal("Unlock $" + unlockPrice), btn -> {
+                // [Unlock $X]
+                Button unlockBtn = Button.builder(Component.literal("Unlock $" + unlockPrice), btn -> {
                     ClientPlayNetworking.send(new RequestUnlockPayload(shopItem.id()));
-                }).bounds(boxX + 196, rowY + 6, 72, 18).build());
+                }).bounds(boxX + 196, rowY + 6, 72, 18).build();
+                addRenderableWidget(unlockBtn);
+                rowWidgets.add(unlockBtn);
             }
         }
     }
 
     private void buildSettingsTabWidgets(int boxX, int boxY) {
-        int startY = boxY + 36;
+        int startY = boxY + 32;
 
         int sellM   = ClientEconomyState.getSellMultiplier();
         int buyM    = ClientEconomyState.getBuyMultiplier();
         int unlockM = ClientEconomyState.getUnlockMultiplier();
 
-        addRenderableWidget(Button.builder(Component.literal("-"), btn -> {
+        int r1 = startY + 22;
+        int r2 = r1 + 28;
+        int r3 = r2 + 28;
+
+        // Sell Multiplier [-] [+]
+        Button sellMinus = Button.builder(Component.literal("-"), btn -> {
             sendUpdateSettings(Math.max(1, sellM - 1), buyM, unlockM);
-        }).bounds(boxX + 225, startY, 20, 18).build());
+        }).bounds(boxX + 215, r1 - 2, 22, 18).build();
+        addRenderableWidget(sellMinus);
+        rowWidgets.add(sellMinus);
 
-        addRenderableWidget(Button.builder(Component.literal("+"), btn -> {
+        Button sellPlus = Button.builder(Component.literal("+"), btn -> {
             sendUpdateSettings(sellM + 1, buyM, unlockM);
-        }).bounds(boxX + 250, startY, 20, 18).build());
+        }).bounds(boxX + 242, r1 - 2, 22, 18).build();
+        addRenderableWidget(sellPlus);
+        rowWidgets.add(sellPlus);
 
-        addRenderableWidget(Button.builder(Component.literal("-"), btn -> {
+        // Buy Multiplier [-] [+]
+        Button buyMinus = Button.builder(Component.literal("-"), btn -> {
             sendUpdateSettings(sellM, Math.max(1, buyM - 1), unlockM);
-        }).bounds(boxX + 225, startY + 30, 20, 18).build());
+        }).bounds(boxX + 215, r2 - 2, 22, 18).build();
+        addRenderableWidget(buyMinus);
+        rowWidgets.add(buyMinus);
 
-        addRenderableWidget(Button.builder(Component.literal("+"), btn -> {
+        Button buyPlus = Button.builder(Component.literal("+"), btn -> {
             sendUpdateSettings(sellM, buyM + 1, unlockM);
-        }).bounds(boxX + 250, startY + 30, 20, 18).build());
+        }).bounds(boxX + 242, r2 - 2, 22, 18).build();
+        addRenderableWidget(buyPlus);
+        rowWidgets.add(buyPlus);
 
-        addRenderableWidget(Button.builder(Component.literal("-"), btn -> {
+        // Unlock Multiplier [-] [+]
+        Button unlockMinus = Button.builder(Component.literal("-"), btn -> {
             sendUpdateSettings(sellM, buyM, Math.max(1, unlockM - 1));
-        }).bounds(boxX + 225, startY + 60, 20, 18).build());
+        }).bounds(boxX + 215, r3 - 2, 22, 18).build();
+        addRenderableWidget(unlockMinus);
+        rowWidgets.add(unlockMinus);
 
-        addRenderableWidget(Button.builder(Component.literal("+"), btn -> {
+        Button unlockPlus = Button.builder(Component.literal("+"), btn -> {
             sendUpdateSettings(sellM, buyM, unlockM + 1);
-        }).bounds(boxX + 250, startY + 60, 20, 18).build());
+        }).bounds(boxX + 242, r3 - 2, 22, 18).build();
+        addRenderableWidget(unlockPlus);
+        rowWidgets.add(unlockPlus);
     }
 
     private void sendUpdateSettings(int sellM, int buyM, int unlockM) {
@@ -236,27 +278,27 @@ public class EconomicsBoxScreen extends Screen {
         graphics.fill(boxX, boxY, boxX + BOX_WIDTH, boxY + BOX_HEIGHT, 0xF0101010);
 
         if (activeTab == Tab.SHOP) {
-            // Render Money Balance Box on Top Right (Green text on Black BG)
+            // Money Balance Box
             renderMoneyBalanceBox(graphics, boxX + BOX_WIDTH - 114, boxY + 5, 108, 16);
-
-            // Draw inner scroll container viewport extending to max right width
             graphics.fill(boxX + 5, boxY + 24, boxX + BOX_WIDTH - 12, boxY + BOX_HEIGHT - 6, 0xFF0A0A0A);
-            renderShopRows(graphics, boxX, boxY);
-            renderDraggableScrollbar(graphics, boxX, boxY);
         } else {
-            // Header Title for non-shop tabs
             String tabTitle = (activeTab == Tab.SETTINGS) ? "Economy Settings & Price Multipliers" : "Professions & Careers";
             graphics.centeredText(this.getFont(), Component.literal(tabTitle), this.width / 2, boxY + 6, 0xFFDD55);
             graphics.fill(boxX + 6, boxY + 18, boxX + BOX_WIDTH - 6, boxY + 19, 0xFF444444);
-
-            if (activeTab == Tab.SETTINGS) {
-                renderSettingsTab(graphics, boxX, boxY);
-            } else if (activeTab == Tab.PROFESSION) {
-                renderProfessionTab(graphics, boxX, boxY);
-            }
         }
 
+        // Render base widgets (buttons, editbox)
         super.extractRenderState(graphics, mouseX, mouseY, delta);
+
+        // Render text overlays ON TOP of widgets & containers
+        if (activeTab == Tab.SHOP) {
+            renderShopRows(graphics, boxX, boxY);
+            renderDraggableScrollbar(graphics, boxX, boxY);
+        } else if (activeTab == Tab.SETTINGS) {
+            renderSettingsTab(graphics, boxX, boxY);
+        } else if (activeTab == Tab.PROFESSION) {
+            renderProfessionTab(graphics, boxX, boxY);
+        }
     }
 
     private void renderMoneyBalanceBox(GuiGraphicsExtractor graphics, int x, int y, int width, int height) {
@@ -279,7 +321,7 @@ public class EconomicsBoxScreen extends Screen {
             int rowY = startY + (i * rowHeight);
             boolean isUnlocked = ClientEconomyState.isUnlocked(shopItem.id());
 
-            // Extended row background tint (extends to boxX + BOX_WIDTH - 14)
+            // Background tint
             int bgTint = isUnlocked ? 0xFF181818 : 0xFF101010;
             graphics.fill(boxX + 6, rowY + 1, boxX + BOX_WIDTH - 14, rowY + rowHeight - 2, bgTint);
             graphics.fill(boxX + 6, rowY + rowHeight - 2, boxX + BOX_WIDTH - 14, rowY + rowHeight - 1, 0xFF282828);
@@ -290,7 +332,7 @@ public class EconomicsBoxScreen extends Screen {
                 graphics.item(new ItemStack(mcItem), boxX + 8, rowY + 7);
             }
 
-            // Unlocked = Bright White (0xFFFFFF); Locked = Dimmed Grey (0x777777)
+            // Unlocked = White; Locked = Dimmed Grey
             int nameColor = isUnlocked ? 0xFFFFFF : 0x777777;
             graphics.text(this.getFont(), Component.literal(shopItem.displayName()), boxX + 28, rowY + 5, nameColor, true);
 
@@ -300,9 +342,6 @@ public class EconomicsBoxScreen extends Screen {
         }
     }
 
-    /**
-     * Sleek 6px Slim Web-Style Draggable Scrollbar Track & Thumb.
-     */
     private void renderDraggableScrollbar(GuiGraphicsExtractor graphics, int boxX, int boxY) {
         List<ShopItem> sortedItems = getSortedShopItems();
         int totalItems = sortedItems.size();
@@ -314,30 +353,36 @@ public class EconomicsBoxScreen extends Screen {
         int trackW = 6;
         int trackH = BOX_HEIGHT - 32;
 
-        // Slim background track
         graphics.fill(trackX, trackY, trackX + trackW, trackY + trackH, 0xFF151515);
 
-        // Thumb height & position
         int thumbH = Math.max(18, (trackH * 4) / Math.max(1, totalItems));
         int thumbY = trackY + ((trackH - thumbH) * scrollOffset) / maxOffset;
-
         int thumbColor = isDraggingScrollbar ? 0xFFAAAAAA : 0xFF666666;
 
-        // Thumb fill
         graphics.fill(trackX, thumbY, trackX + trackW, thumbY + thumbH, thumbColor);
     }
 
     private void renderSettingsTab(GuiGraphicsExtractor graphics, int boxX, int boxY) {
-        int startY = boxY + 38;
+        int startY = boxY + 32;
 
-        graphics.text(this.getFont(), Component.literal("Sell Price Multiplier (Base × Sell):"), boxX + 12, startY + 4, 0xFFFFFF, true);
-        graphics.text(this.getFont(), Component.literal(ClientEconomyState.getSellMultiplier() + "x"), boxX + 275, startY + 4, 0xFFDD55, true);
+        int r1 = startY + 22;
+        int r2 = r1 + 28;
+        int r3 = r2 + 28;
 
-        graphics.text(this.getFont(), Component.literal("Buy Price Multiplier (Base × Buy):"), boxX + 12, startY + 34, 0xFFFFFF, true);
-        graphics.text(this.getFont(), Component.literal(ClientEconomyState.getBuyMultiplier() + "x"), boxX + 275, startY + 34, 0xFFDD55, true);
+        // Row 1: Sell Multiplier
+        graphics.fill(boxX + 10, r1 - 3, boxX + BOX_WIDTH - 10, r1 + 19, 0xFF181818);
+        graphics.text(this.getFont(), Component.literal("Sell Price Multiplier (Base × Sell):"), boxX + 16, r1 + 3, 0xFFFFFF, true);
+        graphics.text(this.getFont(), Component.literal(ClientEconomyState.getSellMultiplier() + "x"), boxX + 200, r1 + 3, 0xFFDD55, true);
 
-        graphics.text(this.getFont(), Component.literal("Unlock Multiplier (Base × Unlock):"), boxX + 12, startY + 64, 0xFFFFFF, true);
-        graphics.text(this.getFont(), Component.literal(ClientEconomyState.getUnlockMultiplier() + "x"), boxX + 275, startY + 64, 0xFFDD55, true);
+        // Row 2: Buy Multiplier
+        graphics.fill(boxX + 10, r2 - 3, boxX + BOX_WIDTH - 10, r2 + 19, 0xFF181818);
+        graphics.text(this.getFont(), Component.literal("Buy Price Multiplier (Base × Buy):"), boxX + 16, r2 + 3, 0xFFFFFF, true);
+        graphics.text(this.getFont(), Component.literal(ClientEconomyState.getBuyMultiplier() + "x"), boxX + 200, r2 + 3, 0xFFDD55, true);
+
+        // Row 3: Unlock Multiplier
+        graphics.fill(boxX + 10, r3 - 3, boxX + BOX_WIDTH - 10, r3 + 19, 0xFF181818);
+        graphics.text(this.getFont(), Component.literal("Unlock Multiplier (Base × Unlock):"), boxX + 16, r3 + 3, 0xFFFFFF, true);
+        graphics.text(this.getFont(), Component.literal(ClientEconomyState.getUnlockMultiplier() + "x"), boxX + 200, r3 + 3, 0xFFDD55, true);
     }
 
     private void renderProfessionTab(GuiGraphicsExtractor graphics, int boxX, int boxY) {
@@ -399,7 +444,9 @@ public class EconomicsBoxScreen extends Screen {
 
         if (newOffset != scrollOffset) {
             scrollOffset = newOffset;
-            rebuildWidgets();
+            int boxX = (this.width  - BOX_WIDTH)  / 2;
+            int boxY = (this.height - BOX_HEIGHT) / 2;
+            updateShopRowButtons(boxX, boxY);
         }
     }
 
@@ -410,11 +457,15 @@ public class EconomicsBoxScreen extends Screen {
             int maxOffset = Math.max(0, sortedItems.size() - 4);
             if (verticalAmount < 0 && scrollOffset < maxOffset) {
                 scrollOffset++;
-                rebuildWidgets();
+                int boxX = (this.width  - BOX_WIDTH)  / 2;
+                int boxY = (this.height - BOX_HEIGHT) / 2;
+                updateShopRowButtons(boxX, boxY);
                 return true;
             } else if (verticalAmount > 0 && scrollOffset > 0) {
                 scrollOffset--;
-                rebuildWidgets();
+                int boxX = (this.width  - BOX_WIDTH)  / 2;
+                int boxY = (this.height - BOX_HEIGHT) / 2;
+                updateShopRowButtons(boxX, boxY);
                 return true;
             }
         }
@@ -445,7 +496,9 @@ public class EconomicsBoxScreen extends Screen {
     }
 
     public void refreshUI() {
-        this.rebuildWidgets();
+        int boxX = (this.width  - BOX_WIDTH)  / 2;
+        int boxY = (this.height - BOX_HEIGHT) / 2;
+        updateShopRowButtons(boxX, boxY);
     }
 
     @Override
