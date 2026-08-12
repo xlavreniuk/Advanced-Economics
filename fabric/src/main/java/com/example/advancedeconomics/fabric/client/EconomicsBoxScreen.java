@@ -89,7 +89,9 @@ public class EconomicsBoxScreen extends Screen {
         Item mcItem = BuiltInRegistries.ITEM.getValue(Identifier.fromNamespaceAndPath("minecraft", itemId));
         if (mcItem == null || mcItem == Items.AIR) return 0;
         int count = 0;
-        for (ItemStack stack : this.minecraft.player.getInventory().items) {
+        var inv = this.minecraft.player.getInventory();
+        for (int slot = 0; slot < inv.getContainerSize(); slot++) {
+            ItemStack stack = inv.getItem(slot);
             if (!stack.isEmpty() && stack.getItem() == mcItem) count += stack.getCount();
         }
         return count;
