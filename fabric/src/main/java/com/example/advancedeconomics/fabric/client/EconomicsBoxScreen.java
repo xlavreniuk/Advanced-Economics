@@ -21,15 +21,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Advanced Economics Box Screen (v0.10).
+ * Advanced Economics Box Screen (v0.12).
  *
- * Features:
- * - Search bar on left above scrollable list (ignores 'N' & hotkeys while typing)
- * - Money balance on right with unified Green Text on Black Background styling
- * - Unlocked items sorted first, locked below
- * - Locked: ONLY [Unlock $X] button
- * - Unlocked: BOTH [Sell $X] and [Buy $X] buttons
- * - Draggable web-style scrollbar
+ * Shop Tab Layout Refinement:
+ * - Search bar on left top (boxY + 5) & Money balance box on right top (boxY + 5), cleanly occupying the top header space.
+ * - Removed grey separator line and redundant header title in Shop tab.
+ * - Item list viewport starts flush right below search bar at boxY + 24.
  */
 public class EconomicsBoxScreen extends Screen {
 
@@ -40,7 +37,7 @@ public class EconomicsBoxScreen extends Screen {
     }
 
     private static final int BOX_WIDTH   = 295;
-    private static final int BOX_HEIGHT  = 180;
+    private static final int BOX_HEIGHT  = 175;
     private static final int BORDER      = 2;
     private static final int BTN_WIDTH   = 68;
     private static final int BTN_HEIGHT  = 18;
@@ -135,10 +132,10 @@ public class EconomicsBoxScreen extends Screen {
     }
 
     private void buildShopTabWidgets(int boxX, int boxY) {
-        // Search Box on Left above scrollable list
+        // Search Box placed cleanly at top left (boxY + 5)
         int searchX = boxX + 6;
-        int searchY = boxY + 22;
-        int searchW = 150;
+        int searchY = boxY + 5;
+        int searchW = 155;
         int searchH = 16;
 
         searchBox = new EditBox(this.getFont(), searchX, searchY, searchW, searchH, Component.literal("Search"));
@@ -155,8 +152,8 @@ public class EconomicsBoxScreen extends Screen {
         int maxOffset = Math.max(0, sortedItems.size() - 4);
         scrollOffset = Math.clamp(scrollOffset, 0, maxOffset);
 
-        int startY = boxY + 41;
-        int rowHeight = 32;
+        int startY = boxY + 25;
+        int rowHeight = 33;
 
         int visibleCount = Math.min(4, sortedItems.size() - scrollOffset);
         for (int i = 0; i < visibleCount; i++) {
@@ -237,24 +234,25 @@ public class EconomicsBoxScreen extends Screen {
                       boxX + BOX_WIDTH + BORDER, boxY + BOX_HEIGHT + BORDER, 0xFF777777);
         graphics.fill(boxX, boxY, boxX + BOX_WIDTH, boxY + BOX_HEIGHT, 0xF0101010);
 
-        // Header Title
-        String tabTitle = (activeTab == Tab.SHOP) ? "Marketplace Shop" :
-                          (activeTab == Tab.SETTINGS) ? "Economy Settings & Price Multipliers" : "Professions & Careers";
-        graphics.centeredText(this.getFont(), Component.literal(tabTitle), this.width / 2, boxY + 6, 0xFFDD55);
-        graphics.fill(boxX + 6, boxY + 18, boxX + BOX_WIDTH - 6, boxY + 19, 0xFF444444);
-
         if (activeTab == Tab.SHOP) {
-            // Render Money Balance Box on Right (Green text on Black BG)
-            renderMoneyBalanceBox(graphics, boxX + BOX_WIDTH - 120, boxY + 22, 95, 16);
+            // Render Money Balance Box on Top Right (Green text on Black BG)
+            renderMoneyBalanceBox(graphics, boxX + BOX_WIDTH - 118, boxY + 5, 95, 16);
 
-            // Draw inner scroll container viewport
-            graphics.fill(boxX + 5, boxY + 40, boxX + BOX_WIDTH - 20, boxY + BOX_HEIGHT - 6, 0xFF0A0A0A);
+            // Draw inner scroll container viewport starting cleanly at boxY + 24
+            graphics.fill(boxX + 5, boxY + 24, boxX + BOX_WIDTH - 20, boxY + BOX_HEIGHT - 6, 0xFF0A0A0A);
             renderShopRows(graphics, boxX, boxY);
             renderDraggableScrollbar(graphics, boxX, boxY);
-        } else if (activeTab == Tab.SETTINGS) {
-            renderSettingsTab(graphics, boxX, boxY);
-        } else if (activeTab == Tab.PROFESSION) {
-            renderProfessionTab(graphics, boxX, boxY);
+        } else {
+            // Header Title for non-shop tabs
+            String tabTitle = (activeTab == Tab.SETTINGS) ? "Economy Settings & Price Multipliers" : "Professions & Careers";
+            graphics.centeredText(this.getFont(), Component.literal(tabTitle), this.width / 2, boxY + 6, 0xFFDD55);
+            graphics.fill(boxX + 6, boxY + 18, boxX + BOX_WIDTH - 6, boxY + 19, 0xFF444444);
+
+            if (activeTab == Tab.SETTINGS) {
+                renderSettingsTab(graphics, boxX, boxY);
+            } else if (activeTab == Tab.PROFESSION) {
+                renderProfessionTab(graphics, boxX, boxY);
+            }
         }
 
         super.extractRenderState(graphics, mouseX, mouseY, delta);
@@ -264,11 +262,9 @@ public class EconomicsBoxScreen extends Screen {
      * Unified Money Balance Display: Green text on Black background.
      */
     private void renderMoneyBalanceBox(GuiGraphicsExtractor graphics, int x, int y, int width, int height) {
-        // Black background box with dark border
         graphics.fill(x - 1, y - 1, x + width + 1, y + height + 1, 0xFF444444);
         graphics.fill(x, y, x + width, y + height, 0xFF000000);
 
-        // Green text: $ <balance>
         long balance = ClientEconomyState.getBalance();
         String text = "§a$ " + balance;
         graphics.centeredText(this.getFont(), Component.literal(text), x + width / 2, y + 4, 0xFF55FF55);
@@ -276,8 +272,8 @@ public class EconomicsBoxScreen extends Screen {
 
     private void renderShopRows(GuiGraphicsExtractor graphics, int boxX, int boxY) {
         List<ShopItem> sortedItems = getSortedShopItems();
-        int startY = boxY + 41;
-        int rowHeight = 32;
+        int startY = boxY + 25;
+        int rowHeight = 33;
 
         int visibleCount = Math.min(4, sortedItems.size() - scrollOffset);
         for (int i = 0; i < visibleCount; i++) {
@@ -313,9 +309,9 @@ public class EconomicsBoxScreen extends Screen {
         if (maxOffset <= 0) return;
 
         int trackX = boxX + BOX_WIDTH - 18;
-        int trackY = boxY + 40;
+        int trackY = boxY + 24;
         int trackW = 12;
-        int trackH = BOX_HEIGHT - 46;
+        int trackH = BOX_HEIGHT - 30;
 
         // Background track
         graphics.fill(trackX, trackY, trackX + trackW, trackY + trackH, 0xFF151515);
@@ -357,9 +353,9 @@ public class EconomicsBoxScreen extends Screen {
             int boxY = (this.height - BOX_HEIGHT) / 2;
 
             int trackX = boxX + BOX_WIDTH - 18;
-            int trackY = boxY + 40;
+            int trackY = boxY + 24;
             int trackW = 12;
-            int trackH = BOX_HEIGHT - 46;
+            int trackH = BOX_HEIGHT - 30;
 
             double mx = event.x();
             double my = event.y();
@@ -377,8 +373,8 @@ public class EconomicsBoxScreen extends Screen {
     public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
         if (activeTab == Tab.SHOP && isDraggingScrollbar) {
             int boxY = (this.height - BOX_HEIGHT) / 2;
-            int trackY = boxY + 40;
-            int trackH = BOX_HEIGHT - 46;
+            int trackY = boxY + 24;
+            int trackH = BOX_HEIGHT - 30;
             updateScrollFromMouseY((int) event.y(), trackY, trackH);
             return true;
         }
@@ -427,16 +423,15 @@ public class EconomicsBoxScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
-        // Ignore hotkeys (including 'N' = 78) when user is typing in the search box
         if (this.searchBox != null && this.searchBox.isFocused()) {
-            if (event.key() == 256) { // ESC key un-focuses search box
+            if (event.key() == 256) {
                 this.searchBox.setFocused(false);
                 return true;
             }
             return super.keyPressed(event);
         }
 
-        if (event.key() == 78) { // GLFW_KEY_N
+        if (event.key() == 78) {
             this.onClose();
             return true;
         }
