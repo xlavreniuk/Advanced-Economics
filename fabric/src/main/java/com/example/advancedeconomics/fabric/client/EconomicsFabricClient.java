@@ -148,7 +148,8 @@ public class EconomicsFabricClient implements ClientModInitializer {
                 // Format Profession label with blue Lvl text (e.g. "Weaponsmith §bLvl 1")
                 String profName = profession.equalsIgnoreCase("Unemployed") ? "No Profession" : profession;
                 String profLabel = profName + " §bLvl " + level;
-                String balLabel = "§a$ " + currentBalance;
+                double currentBalanceDollars = currentBalance / 100.0;
+                String balLabel = String.format(java.util.Locale.US, "§a$%.2f", currentBalanceDollars);
 
                 // Dynamically fit text width
                 int profTextWidth = client.font.width(profLabel);

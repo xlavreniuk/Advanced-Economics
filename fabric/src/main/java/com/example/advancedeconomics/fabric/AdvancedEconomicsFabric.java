@@ -26,8 +26,8 @@ import java.io.File;
 import java.util.Set;
 
 /**
- * Main Fabric Initializer (v0.23).
- * Full profession system with selection, leveling, XP progression, and level-based sell bonuses.
+ * Main Fabric Initializer (v0.30).
+ * Handles double base prices, cents-based economy, and profession leveling.
  */
 public class AdvancedEconomicsFabric implements ModInitializer {
 
@@ -99,8 +99,9 @@ public class AdvancedEconomicsFabric implements ModInitializer {
             ServerPlayer player = context.player();
             ShopItem item = ShopTable.findById(payload.itemId());
             if (player != null && item != null) {
-                long cost = ShopSettings.calculateUnlockPrice(item.basePrice());
-                if (EconomyManager.withdraw(player.getUUID(), cost)) {
+                double costDollars = ShopSettings.calculateUnlockPrice(item.basePrice());
+                long costCents = Math.round(costDollars * 100.0);
+                if (EconomyManager.withdraw(player.getUUID(), costCents)) {
                     PlayerUnlockManager.unlock(player.getUUID(), item.id());
                     syncPlayerState(player);
                 }
@@ -112,8 +113,9 @@ public class AdvancedEconomicsFabric implements ModInitializer {
             ShopItem shopItem = ShopTable.findById(payload.itemId());
             if (player != null && shopItem != null) {
                 if (PlayerUnlockManager.isUnlocked(player.getUUID(), shopItem.id())) {
-                    long cost = ShopSettings.calculateBuyPrice(shopItem.basePrice());
-                    if (EconomyManager.withdraw(player.getUUID(), cost)) {
+                    double costDollars = ShopSettings.calculateBuyPrice(shopItem.basePrice());
+                    long costCents = Math.round(costDollars * 100.0);
+                    if (EconomyManager.withdraw(player.getUUID(), costCents)) {
                         Item mcItem = BuiltInRegistries.ITEM.getValue(Identifier.fromNamespaceAndPath("minecraft", shopItem.id()));
                         if (mcItem != null) {
                             player.getInventory().add(new ItemStack(mcItem, 1));
@@ -135,15 +137,17 @@ public class AdvancedEconomicsFabric implements ModInitializer {
                         if (!stack.isEmpty() && stack.is(mcItem)) {
                             stack.shrink(1);
 
-                            // Base sell price x multiplier x profession level bonus ratio (+5% / lvl)
-                            long basePayout = ShopSettings.calculateSellPrice(shopItem.basePrice());
+                            double basePayoutDollars = ShopSettings.calculateSellPrice(shopItem.basePrice());
                             double bonusRatio = ProfessionManager.getProfessionSellBonusRatio(player.getUUID(), shopItem.id());
-                            long finalPayout = Math.max(1, Math.round(basePayout * bonusRatio));
+                            double finalPayoutDollars = basePayoutDollars * bonusRatio;
+
+                            long payoutCents = Math.max(1L, Math.round(finalPayoutDollars * 100.0));
 
                             // Grant Profession XP when selling matching items!
-                            ProfessionManager.addXp(player.getUUID(), 10L * Math.max(1, shopItem.basePrice()));
+                            long xpAmount = Math.max(1L, Math.round(shopItem.basePrice() * 100.0));
+                            ProfessionManager.addXp(player.getUUID(), xpAmount);
 
-                            EconomyManager.deposit(player.getUUID(), finalPayout);
+                            EconomyManager.deposit(player.getUUID(), payoutCents);
                             syncPlayerState(player);
                             break;
                         }

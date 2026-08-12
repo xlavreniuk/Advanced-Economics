@@ -3,94 +3,90 @@ package com.example.advancedeconomics.shop;
 import com.example.advancedeconomics.AdvancedEconomicsCommon;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
-import java.nio.charset.StandardCharsets;
 
 /**
- * Global Economy Settings & Price Multipliers Manager.
- * Default Multipliers:
- *   Sell:   1x (Sell Price   = Base * 1)
- *   Buy:    5x (Buy Price    = Base * 5)
- *   Unlock: 10x (Unlock Cost = Base * 10)
+ * Global Economy Price Multipliers Config (v0.29).
  */
 public class ShopSettings {
 
-    private static int sellMultiplier = 1;
-    private static int buyMultiplier = 5;
+    private static int sellMultiplier   = 1;
+    private static int buyMultiplier    = 5;
     private static int unlockMultiplier = 10;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    public static int getSellMultiplier() {
-        return sellMultiplier;
+    public static class SettingsData {
+        public int sellMultiplier   = 1;
+        public int buyMultiplier    = 5;
+        public int unlockMultiplier = 10;
     }
 
-    public static void setSellMultiplier(int mult) {
-        sellMultiplier = Math.max(1, mult);
+    public static int getSellMultiplier() {
+        return sellMultiplier;
     }
 
     public static int getBuyMultiplier() {
         return buyMultiplier;
     }
 
-    public static void setBuyMultiplier(int mult) {
-        buyMultiplier = Math.max(1, mult);
-    }
-
     public static int getUnlockMultiplier() {
         return unlockMultiplier;
+    }
+
+    public static void setSellMultiplier(int mult) {
+        sellMultiplier = Math.max(1, mult);
+    }
+
+    public static void setBuyMultiplier(int mult) {
+        buyMultiplier = Math.max(1, mult);
     }
 
     public static void setUnlockMultiplier(int mult) {
         unlockMultiplier = Math.max(1, mult);
     }
 
-    public static long calculateSellPrice(long basePrice) {
-        return basePrice * sellMultiplier;
+    public static double calculateSellPrice(double basePrice) {
+        return Math.max(0.01, Math.round(basePrice * sellMultiplier * 100.0) / 100.0);
     }
 
-    public static long calculateBuyPrice(long basePrice) {
-        return basePrice * buyMultiplier;
+    public static double calculateBuyPrice(double basePrice) {
+        return Math.max(0.01, Math.round(basePrice * buyMultiplier * 100.0) / 100.0);
     }
 
-    public static long calculateUnlockPrice(long basePrice) {
-        return basePrice * unlockMultiplier;
+    public static double calculateUnlockPrice(double basePrice) {
+        return Math.max(0.01, Math.round(basePrice * unlockMultiplier * 100.0) / 100.0);
     }
 
-    public static synchronized void load(File worldDataDir) {
-        File saveFile = new File(worldDataDir, "shop_settings.json");
-        if (!saveFile.exists()) return;
-
-        try (FileReader reader = new FileReader(saveFile, StandardCharsets.UTF_8)) {
-            JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
-            if (root.has("sellMultiplier")) sellMultiplier = root.get("sellMultiplier").getAsInt();
-            if (root.has("buyMultiplier")) buyMultiplier = root.get("buyMultiplier").getAsInt();
-            if (root.has("unlockMultiplier")) unlockMultiplier = root.get("unlockMultiplier").getAsInt();
+    public static void load(File dataDir) {
+        File file = new File(dataDir, "settings.json");
+        if (!file.exists()) return;
+        try (FileReader reader = new FileReader(file)) {
+            SettingsData data = GSON.fromJson(reader, SettingsData.class);
+            if (data != null) {
+                sellMultiplier   = Math.max(1, data.sellMultiplier);
+                buyMultiplier    = Math.max(1, data.buyMultiplier);
+                unlockMultiplier = Math.max(1, data.unlockMultiplier);
+            }
         } catch (Exception e) {
-            AdvancedEconomicsCommon.LOGGER.error("[ShopSettings] Failed to load settings: {}", e.getMessage(), e);
+            AdvancedEconomicsCommon.LOGGER.error("[AE] Failed to load settings: {}", e.getMessage());
         }
     }
 
-    public static synchronized void save(File worldDataDir) {
-        try {
-            if (!worldDataDir.exists()) worldDataDir.mkdirs();
-            File saveFile = new File(worldDataDir, "shop_settings.json");
-
-            JsonObject root = new JsonObject();
-            root.addProperty("sellMultiplier", sellMultiplier);
-            root.addProperty("buyMultiplier", buyMultiplier);
-            root.addProperty("unlockMultiplier", unlockMultiplier);
-
-            try (FileWriter writer = new FileWriter(saveFile, StandardCharsets.UTF_8)) {
-                GSON.toJson(root, writer);
-            }
+    public static void save(File dataDir) {
+        if (!dataDir.exists()) dataDir.mkdirs();
+        File file = new File(dataDir, "settings.json");
+        try (FileWriter writer = new FileWriter(file)) {
+            SettingsData data = new SettingsData();
+            data.sellMultiplier   = sellMultiplier;
+            data.buyMultiplier    = buyMultiplier;
+            data.unlockMultiplier = unlockMultiplier;
+            GSON.toJson(data, writer);
         } catch (Exception e) {
-            AdvancedEconomicsCommon.LOGGER.error("[ShopSettings] Failed to save settings: {}", e.getMessage(), e);
+            AdvancedEconomicsCommon.LOGGER.error("[AE] Failed to save settings: {}", e.getMessage());
         }
     }
 }

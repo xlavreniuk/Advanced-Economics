@@ -20,12 +20,15 @@ import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
- * Advanced Economics Box Screen (v0.28).
+ * Advanced Economics Box Screen (v0.29).
  *
- * Scrollbar Button Styling:
- * - Top ▲ and Bottom ▼ scroll buttons made thinner (12px wide, 10px high), centered over the 6px track.
+ * Enhancements:
+ * - Prices formatted with $0.01 precision (e.g. $0.01, $0.25, $1.50, $500.00).
+ * - Expanded main container box width to 315px for spacious row layout.
+ * - Thinner 12x10 ▲ and ▼ scroll buttons flush with the scrollbar column.
  */
 public class EconomicsBoxScreen extends Screen {
 
@@ -35,10 +38,10 @@ public class EconomicsBoxScreen extends Screen {
         SETTINGS
     }
 
-    private static final int BOX_WIDTH   = 295;
+    private static final int BOX_WIDTH   = 315;
     private static final int BOX_HEIGHT  = 171;
     private static final int BORDER      = 2;
-    private static final int BTN_WIDTH   = 68;
+    private static final int BTN_WIDTH   = 72;
     private static final int BTN_HEIGHT  = 18;
     private static final int BTN_GAP     = 3;
     private static final int BTN_MARGIN  = 4;
@@ -133,7 +136,7 @@ public class EconomicsBoxScreen extends Screen {
     private void buildShopTabWidgets(int boxX, int boxY) {
         int searchX = boxX + 6;
         int searchY = boxY + 5;
-        int searchW = 165;
+        int searchW = 175;
         int searchH = 16;
 
         searchBox = new EditBox(this.getFont(), searchX, searchY, searchW, searchH, Component.literal("Search"));
@@ -186,9 +189,9 @@ public class EconomicsBoxScreen extends Screen {
             int rowY = startY + (i * rowHeight);
 
             boolean isUnlocked = ClientEconomyState.isUnlocked(shopItem.id());
-            long sellPrice   = shopItem.basePrice() * ClientEconomyState.getSellMultiplier();
-            long buyPrice    = shopItem.basePrice() * ClientEconomyState.getBuyMultiplier();
-            long unlockPrice = shopItem.basePrice() * ClientEconomyState.getUnlockMultiplier();
+            double sellPrice   = shopItem.basePrice() * ClientEconomyState.getSellMultiplier();
+            double buyPrice    = shopItem.basePrice() * ClientEconomyState.getBuyMultiplier();
+            double unlockPrice = shopItem.basePrice() * ClientEconomyState.getUnlockMultiplier();
 
             boolean hasItemInInventory = false;
             if (this.minecraft != null && this.minecraft.player != null) {
@@ -199,19 +202,24 @@ public class EconomicsBoxScreen extends Screen {
             }
 
             if (isUnlocked) {
-                Button sellBtn = Button.builder(Component.literal("Sell $" + sellPrice), btn -> {
+                String sellStr = formatPrice(sellPrice);
+                String buyStr  = formatPrice(buyPrice);
+
+                Button sellBtn = Button.builder(Component.literal("Sell " + sellStr), btn -> {
                     ClientPlayNetworking.send(new RequestSellPayload(shopItem.id()));
-                }).bounds(boxX + 138, rowY + 8, 56, 18).build();
+                }).bounds(boxX + 150, rowY + 8, 64, 18).build();
                 sellBtn.active = hasItemInInventory;
                 addRenderableWidget(sellBtn);
 
-                addRenderableWidget(Button.builder(Component.literal("Buy $" + buyPrice), btn -> {
+                addRenderableWidget(Button.builder(Component.literal("Buy " + buyStr), btn -> {
                     ClientPlayNetworking.send(new RequestBuyPayload(shopItem.id()));
-                }).bounds(boxX + 198, rowY + 8, 58, 18).build());
+                }).bounds(boxX + 218, rowY + 8, 66, 18).build());
             } else {
-                addRenderableWidget(Button.builder(Component.literal("Unlock $" + unlockPrice), btn -> {
+                String unlockStr = formatPrice(unlockPrice);
+
+                addRenderableWidget(Button.builder(Component.literal("Unlock " + unlockStr), btn -> {
                     ClientPlayNetworking.send(new RequestUnlockPayload(shopItem.id()));
-                }).bounds(boxX + 188, rowY + 8, 68, 18).build());
+                }).bounds(boxX + 204, rowY + 8, 80, 18).build());
             }
         }
     }
@@ -255,7 +263,7 @@ public class EconomicsBoxScreen extends Screen {
                     ClientPlayNetworking.send(new RequestSetProfessionPayload(prof.name()));
                     ClientEconomyState.setProfession(prof.getDisplayName());
                     rebuildWidgets();
-                }).bounds(boxX + 208, rowY + 8, 56, 18).build());
+                }).bounds(boxX + 224, rowY + 8, 58, 18).build());
             }
         }
     }
@@ -273,33 +281,43 @@ public class EconomicsBoxScreen extends Screen {
 
         addRenderableWidget(Button.builder(Component.literal("-"), btn -> {
             sendUpdateSettings(Math.max(1, sellM - 1), buyM, unlockM);
-        }).bounds(boxX + 210, r1 - 2, 22, 18).build());
+        }).bounds(boxX + 225, r1 - 2, 22, 18).build());
 
         addRenderableWidget(Button.builder(Component.literal("+"), btn -> {
             sendUpdateSettings(sellM + 1, buyM, unlockM);
-        }).bounds(boxX + 237, r1 - 2, 22, 18).build());
+        }).bounds(boxX + 252, r1 - 2, 22, 18).build());
 
         addRenderableWidget(Button.builder(Component.literal("-"), btn -> {
             sendUpdateSettings(sellM, Math.max(1, buyM - 1), unlockM);
-        }).bounds(boxX + 210, r2 - 2, 22, 18).build());
+        }).bounds(boxX + 225, r2 - 2, 22, 18).build());
 
         addRenderableWidget(Button.builder(Component.literal("+"), btn -> {
             sendUpdateSettings(sellM, buyM + 1, unlockM);
-        }).bounds(boxX + 237, r2 - 2, 22, 18).build());
+        }).bounds(boxX + 252, r2 - 2, 22, 18).build());
 
         addRenderableWidget(Button.builder(Component.literal("-"), btn -> {
             sendUpdateSettings(sellM, buyM, Math.max(1, unlockM - 1));
-        }).bounds(boxX + 210, r3 - 2, 22, 18).build());
+        }).bounds(boxX + 225, r3 - 2, 22, 18).build());
 
         addRenderableWidget(Button.builder(Component.literal("+"), btn -> {
             sendUpdateSettings(sellM, buyM, unlockM + 1);
-        }).bounds(boxX + 237, r3 - 2, 22, 18).build());
+        }).bounds(boxX + 252, r3 - 2, 22, 18).build());
     }
 
     private void sendUpdateSettings(int sellM, int buyM, int unlockM) {
         ClientPlayNetworking.send(new RequestUpdateSettingsPayload(sellM, buyM, unlockM));
         ClientEconomyState.setMultipliers(sellM, buyM, unlockM);
         rebuildWidgets();
+    }
+
+    private String formatPrice(double price) {
+        if (price < 1.0) {
+            return String.format(Locale.US, "$%.2f", price);
+        } else if (price == (long) price) {
+            return String.format(Locale.US, "$%d", (long) price);
+        } else {
+            return String.format(Locale.US, "$%.2f", price);
+        }
     }
 
     @Override
@@ -317,7 +335,7 @@ public class EconomicsBoxScreen extends Screen {
 
         // Pass 3: Tab-specific backgrounds, text & item icons
         if (activeTab == Tab.SHOP) {
-            renderMoneyBalanceBox(graphics, boxX + BOX_WIDTH - 114, boxY + 5, 108, 16);
+            renderMoneyBalanceBox(graphics, boxX + BOX_WIDTH - 124, boxY + 5, 118, 16);
             graphics.fill(boxX + 5, boxY + 24, boxX + BOX_WIDTH - 26, boxY + 168, 0xFF0A0A0A);
             renderShopRows(graphics, boxX, boxY);
             renderDraggableScrollbar(graphics, boxX, boxY);
@@ -345,13 +363,13 @@ public class EconomicsBoxScreen extends Screen {
         int setX  = visualLeft + (BTN_WIDTH + BTN_GAP) * 2;
 
         if (activeTab != Tab.SHOP) {
-            graphics.fill(shopX, btnY, shopX + BTN_WIDTH, btnY + BTN_HEIGHT, 0x90000000);
+            graphics.fill(shopX, btnY, shopX + BTN_WIDTH, btnY + BTN_HEIGHT, 0x38000000);
         }
         if (activeTab != Tab.PROFESSION) {
-            graphics.fill(profX, btnY, profX + BTN_WIDTH, btnY + BTN_HEIGHT, 0x90000000);
+            graphics.fill(profX, btnY, profX + BTN_WIDTH, btnY + BTN_HEIGHT, 0x38000000);
         }
         if (activeTab != Tab.SETTINGS) {
-            graphics.fill(setX, btnY, setX + BTN_WIDTH, btnY + BTN_HEIGHT, 0x90000000);
+            graphics.fill(setX, btnY, setX + BTN_WIDTH, btnY + BTN_HEIGHT, 0x38000000);
         }
     }
 
@@ -359,8 +377,9 @@ public class EconomicsBoxScreen extends Screen {
         graphics.fill(x - 1, y - 1, x + width + 1, y + height + 1, 0xFF444444);
         graphics.fill(x, y, x + width, y + height, 0xFF000000);
 
-        long balance = ClientEconomyState.getBalance();
-        String text = "§a$ " + balance;
+        long balanceCents = ClientEconomyState.getBalance();
+        double balanceDollars = balanceCents / 100.0;
+        String text = String.format(Locale.US, "§a$%.2f", balanceDollars);
         graphics.centeredText(this.getFont(), Component.literal(text), x + width / 2, y + 4, 0xFF55FF55);
     }
 
@@ -421,15 +440,15 @@ public class EconomicsBoxScreen extends Screen {
 
         graphics.fill(boxX + 10, r1 - 3, boxX + BOX_WIDTH - 10, r1 + 19, 0xFF181818);
         graphics.text(this.getFont(), Component.literal("Sell Multiplier:"), boxX + 16, r1 + 3, 0xFFFFFFFF, true);
-        graphics.text(this.getFont(), Component.literal("§e" + ClientEconomyState.getSellMultiplier() + "x"), boxX + 165, r1 + 3, 0xFFFFDD55, true);
+        graphics.text(this.getFont(), Component.literal("§e" + ClientEconomyState.getSellMultiplier() + "x"), boxX + 180, r1 + 3, 0xFFFFDD55, true);
 
         graphics.fill(boxX + 10, r2 - 3, boxX + BOX_WIDTH - 10, r2 + 19, 0xFF181818);
         graphics.text(this.getFont(), Component.literal("Buy Multiplier:"), boxX + 16, r2 + 3, 0xFFFFFFFF, true);
-        graphics.text(this.getFont(), Component.literal("§e" + ClientEconomyState.getBuyMultiplier() + "x"), boxX + 165, r2 + 3, 0xFFFFDD55, true);
+        graphics.text(this.getFont(), Component.literal("§e" + ClientEconomyState.getBuyMultiplier() + "x"), boxX + 180, r2 + 3, 0xFFFFDD55, true);
 
         graphics.fill(boxX + 10, r3 - 3, boxX + BOX_WIDTH - 10, r3 + 19, 0xFF181818);
         graphics.text(this.getFont(), Component.literal("Unlock Multiplier:"), boxX + 16, r3 + 3, 0xFFFFFFFF, true);
-        graphics.text(this.getFont(), Component.literal("§e" + ClientEconomyState.getUnlockMultiplier() + "x"), boxX + 165, r3 + 3, 0xFFFFDD55, true);
+        graphics.text(this.getFont(), Component.literal("§e" + ClientEconomyState.getUnlockMultiplier() + "x"), boxX + 180, r3 + 3, 0xFFFFDD55, true);
 
         graphics.text(this.getFont(), Component.literal("§7Multiplies item prices in Shop (e.g. 5x base price)."), boxX + 14, startY + 112, 0xFFAAAAAA, true);
     }
@@ -444,12 +463,12 @@ public class EconomicsBoxScreen extends Screen {
         graphics.text(this.getFont(), Component.literal(headerStr), boxX + 12, boxY + 22, 0xFFFFFFFF, true);
 
         int bonusPct = level * 2;
-        graphics.text(this.getFont(), Component.literal("§a+" + bonusPct + "% Sell Bonus"), boxX + 198, boxY + 22, 0xFF55FF55, true);
+        graphics.text(this.getFont(), Component.literal("§a+" + bonusPct + "% Sell Bonus"), boxX + 218, boxY + 22, 0xFF55FF55, true);
 
         // XP Progress Bar
         int barX = boxX + 12;
         int barY = boxY + 35;
-        int barW = 271;
+        int barW = 291;
         int barH = 14;
 
         graphics.fill(barX - 1, barY - 1, barX + barW + 1, barY + barH + 1, 0xFF444444);
@@ -498,7 +517,7 @@ public class EconomicsBoxScreen extends Screen {
             graphics.text(this.getFont(), Component.literal("§7" + prof.getDescription()), boxX + 36, rowY + 17, 0xFFAAAAAA, true);
 
             if (isCurrent) {
-                graphics.text(this.getFont(), Component.literal("§a✔ Active"), boxX + 215, rowY + 10, 0xFF55FF55, true);
+                graphics.text(this.getFont(), Component.literal("§a✔ Active"), boxX + 232, rowY + 10, 0xFF55FF55, true);
             }
         }
 
