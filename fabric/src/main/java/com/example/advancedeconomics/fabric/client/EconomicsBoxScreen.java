@@ -54,10 +54,11 @@ public class EconomicsBoxScreen extends Screen {
 
     // Sort mode cycles on each button press
     public enum SortMode {
-        NAME_AZ,    // A → Z
-        NAME_ZA,    // Z → A
-        PRICE_LOW,  // $ low → high
-        PRICE_HIGH  // $ high → low
+        NAME_AZ,    // A
+        NAME_ZA,    // Z
+        PRICE_LOW,  // ↑ (price low → high)
+        PRICE_HIGH, // ↓ (price high → low)
+        QTY_HIGH    // # (most owned first)
     }
 
     private SortMode sortMode = SortMode.NAME_AZ;
@@ -82,6 +83,18 @@ public class EconomicsBoxScreen extends Screen {
         }
     }
 
+    /** Returns how many of the given shop item id the local player currently carries. */
+    private int getInventoryCount(String itemId) {
+        if (this.minecraft == null || this.minecraft.player == null) return 0;
+        Item mcItem = BuiltInRegistries.ITEM.getValue(Identifier.fromNamespaceAndPath("minecraft", itemId));
+        if (mcItem == null || mcItem == Items.AIR) return 0;
+        int count = 0;
+        for (ItemStack stack : this.minecraft.player.getInventory().items) {
+            if (!stack.isEmpty() && stack.getItem() == mcItem) count += stack.getCount();
+        }
+        return count;
+    }
+
     private List<ShopItem> getSortedShopItems() {
         List<ShopItem> all = ShopTable.getItems();
         List<ShopItem> unlocked = new ArrayList<>();
@@ -102,12 +115,18 @@ public class EconomicsBoxScreen extends Screen {
             }
         }
 
-        // Apply sort within each group, then concat
+        // Build quantity map once for QTY_HIGH sort
+        java.util.Map<String, Integer> qtyMap = new java.util.HashMap<>();
+        if (sortMode == SortMode.QTY_HIGH) {
+            for (ShopItem si : all) qtyMap.put(si.id(), getInventoryCount(si.id()));
+        }
+
         java.util.Comparator<ShopItem> cmp = switch (sortMode) {
             case NAME_AZ   -> java.util.Comparator.comparing(ShopItem::displayName, String.CASE_INSENSITIVE_ORDER);
             case NAME_ZA   -> java.util.Comparator.comparing(ShopItem::displayName, String.CASE_INSENSITIVE_ORDER).reversed();
             case PRICE_LOW -> java.util.Comparator.comparingDouble(ShopItem::basePrice);
             case PRICE_HIGH-> java.util.Comparator.comparingDouble(ShopItem::basePrice).reversed();
+            case QTY_HIGH  -> java.util.Comparator.<ShopItem>comparingInt(si -> qtyMap.getOrDefault(si.id(), 0)).reversed();
         };
         unlocked.sort(cmp);
         locked.sort(cmp);
@@ -192,23 +211,26 @@ public class EconomicsBoxScreen extends Screen {
 
         addRenderableWidget(searchBox);
 
-        // Sort cycle button — icon only, cycles NAME_AZ → NAME_ZA → PRICE_LOW → PRICE_HIGH
+        // Sort cycle button — single-char icon only
+        // Cycle: A → Z → ↑ (price↑) → ↓ (price↓) → # (qty) → A
         String sortIcon = switch (sortMode) {
-            case NAME_AZ    -> "A-Z";
-            case NAME_ZA    -> "Z-A";
-            case PRICE_LOW  -> "$+";
-            case PRICE_HIGH -> "$-";
+            case NAME_AZ    -> "A";
+            case NAME_ZA    -> "Z";
+            case PRICE_LOW  -> "↑";
+            case PRICE_HIGH -> "↓";
+            case QTY_HIGH   -> "#";
         };
         addRenderableWidget(Button.builder(Component.literal(sortIcon), btn -> {
             sortMode = switch (sortMode) {
                 case NAME_AZ    -> SortMode.NAME_ZA;
                 case NAME_ZA    -> SortMode.PRICE_LOW;
                 case PRICE_LOW  -> SortMode.PRICE_HIGH;
-                case PRICE_HIGH -> SortMode.NAME_AZ;
+                case PRICE_HIGH -> SortMode.QTY_HIGH;
+                case QTY_HIGH   -> SortMode.NAME_AZ;
             };
             scrollOffset = 0;
             rebuildWidgets();
-        }).bounds(boxX + 185, boxY + 4, 22, 16).build());
+        }).bounds(boxX + 185, boxY + 4, 16, 16).build());
         List<ShopItem> sortedItems = getSortedShopItems();
         int maxOffset = Math.max(0, sortedItems.size() - 4);
         scrollOffset = Math.clamp(scrollOffset, 0, maxOffset);
