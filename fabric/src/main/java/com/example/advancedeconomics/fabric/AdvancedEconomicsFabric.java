@@ -11,6 +11,7 @@ import com.example.advancedeconomics.shop.ShopSettings;
 import com.example.advancedeconomics.shop.ShopTable;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -34,16 +35,10 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Main Fabric Initializer (v0.33).
- * Complete /ae Command Suite:
- * - /ae (opens info / help)
- * - /ae send <player> <amount> (or /ae pay)
- * - /ae give <amount> [player] (OP command)
- * - /ae take <amount> <player> (OP command)
- * - /ae setmoney <player> <amount> (OP command)
- * - /ae setlevel <player> <level> (OP command)
- * - /ae addxp <player> <amount> (OP command)
- * - /ae help
+ * Main Fabric Initializer (v0.34).
+ *
+ * Unified /ae Command Suite:
+ * Standard Pattern: /ae <action> <quantity/item> [player] (defaults to current player if omitted).
  */
 public class AdvancedEconomicsFabric implements ModInitializer {
 
@@ -66,7 +61,7 @@ public class AdvancedEconomicsFabric implements ModInitializer {
         PayloadTypeRegistry.serverboundPlay().register(RequestUpdateSettingsPayload.TYPE, RequestUpdateSettingsPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RequestSetProfessionPayload.TYPE, RequestSetProfessionPayload.CODEC);
 
-        // 3. Register Commands Suite (/ae)
+        // 3. Register Unified /ae Commands Suite
         registerCommands();
 
         // 4. World Lifecycle Events
@@ -131,17 +126,7 @@ public class AdvancedEconomicsFabric implements ModInitializer {
             ServerPlayer player = context.player();
             ShopItem shopItem = ShopTable.findById(payload.itemId());
             if (player != null && shopItem != null) {
-                if (PlayerUnlockManager.isUnlocked(player.getUUID(), shopItem.id())) {
-                    double costDollars = ShopSettings.calculateBuyPrice(shopItem.basePrice());
-                    long costCents = Math.round(costDollars * 100.0);
-                    if (EconomyManager.withdraw(player.getUUID(), costCents)) {
-                        Item mcItem = BuiltInRegistries.ITEM.getValue(Identifier.fromNamespaceAndPath("minecraft", shopItem.id()));
-                        if (mcItem != null) {
-                            player.getInventory().add(new ItemStack(mcItem, 1));
-                        }
-                        syncPlayerState(player);
-                    }
-                }
+                executeBuyItem(player, shopItem, 1);
             }
         });
 
@@ -149,28 +134,7 @@ public class AdvancedEconomicsFabric implements ModInitializer {
             ServerPlayer player = context.player();
             ShopItem shopItem = ShopTable.findById(payload.itemId());
             if (player != null && shopItem != null) {
-                Item mcItem = BuiltInRegistries.ITEM.getValue(Identifier.fromNamespaceAndPath("minecraft", shopItem.id()));
-                if (mcItem != null) {
-                    for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-                        ItemStack stack = player.getInventory().getItem(i);
-                        if (!stack.isEmpty() && stack.is(mcItem)) {
-                            stack.shrink(1);
-
-                            double basePayoutDollars = ShopSettings.calculateSellPrice(shopItem.basePrice());
-                            double bonusRatio = ProfessionManager.getProfessionSellBonusRatio(player.getUUID(), shopItem.id());
-                            double finalPayoutDollars = basePayoutDollars * bonusRatio;
-
-                            long payoutCents = Math.max(1L, Math.round(finalPayoutDollars * 100.0));
-
-                            long xpAmount = Math.max(1L, Math.round(shopItem.basePrice() * 100.0));
-                            ProfessionManager.addXp(player.getUUID(), xpAmount);
-
-                            EconomyManager.deposit(player.getUUID(), payoutCents);
-                            syncPlayerState(player);
-                            break;
-                        }
-                    }
-                }
+                executeSellItem(player, shopItem, 1);
             }
         });
 
@@ -221,26 +185,30 @@ public class AdvancedEconomicsFabric implements ModInitializer {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             dispatcher.register(Commands.literal("ae")
                 .executes(context -> {
-                    context.getSource().sendSuccess(() -> Component.literal("§a[Advanced Economics] §fPress 'N' to open the Economy Box menu, or use §e/ae help§f for commands."), false);
+                    context.getSource().sendSuccess(() -> Component.literal("§a[Advanced Economics] §fPress 'N' to open UI menu, or use §e/ae help§f."), false);
                     return 1;
                 })
                 .then(Commands.literal("help").executes(context -> {
-                    context.getSource().sendSuccess(() -> Component.literal("§e--- Advanced Economics Commands ---\n" +
-                            "§a/ae send <player> <amount> §7- Send money to another player\n" +
-                            "§a/ae give <amount> [player] §7- (Admin) Give money to a player\n" +
-                            "§a/ae take <amount> <player> §7- (Admin) Remove money from a player\n" +
-                            "§a/ae setmoney <player> <amount> §7- (Admin) Set a player's balance\n" +
-                            "§a/ae setlevel <player> <level> §7- (Admin) Set profession level\n" +
-                            "§a/ae addxp <player> <amount> §7- (Admin) Grant profession XP"), false);
+                    context.getSource().sendSuccess(() -> Component.literal("§e--- Advanced Economics Unified Commands ---\n" +
+                            "§a/ae send <amount> <player> §7- Transfer money to player\n" +
+                            "§a/ae buy <item> [quantity] §7- Buy item(s) from shop\n" +
+                            "§a/ae sell [item] [quantity] §7- Sell item(s) from inventory\n" +
+                            "§a/ae unlock <item> §7- Unlock item in shop\n" +
+                            "§a/ae give <amount> [player] §7- (Admin) Give money (default self)\n" +
+                            "§a/ae take <amount> [player] §7- (Admin) Take money (default self)\n" +
+                            "§a/ae setmoney <amount> [player] §7- (Admin) Set balance (default self)\n" +
+                            "§a/ae setlevel <level> [player] §7- (Admin) Set level (default self)\n" +
+                            "§a/ae addxp <amount> [player] §7- (Admin) Add XP (default self)"), false);
                     return 1;
                 }))
-                // /ae send <player> <amount>
+
+                // 1. /ae send <amount> <player>
                 .then(Commands.literal("send")
-                    .then(Commands.argument("target", EntityArgument.player())
-                        .then(Commands.argument("amount", DoubleArgumentType.doubleArg(0.01))
+                    .then(Commands.argument("amount", DoubleArgumentType.doubleArg(0.01))
+                        .then(Commands.argument("player", EntityArgument.player())
                             .executes(context -> {
                                 ServerPlayer sender = context.getSource().getPlayerOrException();
-                                ServerPlayer target = EntityArgument.getPlayer(context, "target");
+                                ServerPlayer target = EntityArgument.getPlayer(context, "player");
                                 double amountDollars = DoubleArgumentType.getDouble(context, "amount");
                                 long cents = Math.round(amountDollars * 100.0);
 
@@ -258,98 +226,247 @@ public class AdvancedEconomicsFabric implements ModInitializer {
                                     return 0;
                                 }
                             }))))
-                // /ae give <amount> [player] (OP command)
+
+                // 2. /ae give <amount> [player]
                 .then(Commands.literal("give").requires(AdvancedEconomicsFabric::isOperator)
                     .then(Commands.argument("amount", DoubleArgumentType.doubleArg(0.01))
-                        .executes(context -> {
-                            ServerPlayer target = context.getSource().getPlayerOrException();
-                            double amountDollars = DoubleArgumentType.getDouble(context, "amount");
-                            long cents = Math.round(amountDollars * 100.0);
+                        .executes(context -> executeGive(context.getSource(), DoubleArgumentType.getDouble(context, "amount"), context.getSource().getPlayerOrException()))
+                        .then(Commands.argument("player", EntityArgument.player())
+                            .executes(context -> executeGive(context.getSource(), DoubleArgumentType.getDouble(context, "amount"), EntityArgument.getPlayer(context, "player"))))))
 
-                            EconomyManager.deposit(target.getUUID(), cents);
-                            syncPlayerState(target);
-
-                            String formatted = String.format(Locale.US, "$%.2f", amountDollars);
-                            context.getSource().sendSuccess(() -> Component.literal("§a[AE] Gave " + formatted + " to " + target.getScoreboardName()), true);
-                            return 1;
-                        })
-                        .then(Commands.argument("target", EntityArgument.player())
-                            .executes(context -> {
-                                ServerPlayer target = EntityArgument.getPlayer(context, "target");
-                                double amountDollars = DoubleArgumentType.getDouble(context, "amount");
-                                long cents = Math.round(amountDollars * 100.0);
-
-                                EconomyManager.deposit(target.getUUID(), cents);
-                                syncPlayerState(target);
-
-                                String formatted = String.format(Locale.US, "$%.2f", amountDollars);
-                                context.getSource().sendSuccess(() -> Component.literal("§a[AE] Gave " + formatted + " to " + target.getScoreboardName()), true);
-                                return 1;
-                            }))))
-                // /ae take <amount> <player> (OP command)
+                // 3. /ae take <amount> [player]
                 .then(Commands.literal("take").requires(AdvancedEconomicsFabric::isOperator)
                     .then(Commands.argument("amount", DoubleArgumentType.doubleArg(0.01))
-                        .then(Commands.argument("target", EntityArgument.player())
-                            .executes(context -> {
-                                ServerPlayer target = EntityArgument.getPlayer(context, "target");
-                                double amountDollars = DoubleArgumentType.getDouble(context, "amount");
-                                long cents = Math.round(amountDollars * 100.0);
+                        .executes(context -> executeTake(context.getSource(), DoubleArgumentType.getDouble(context, "amount"), context.getSource().getPlayerOrException()))
+                        .then(Commands.argument("player", EntityArgument.player())
+                            .executes(context -> executeTake(context.getSource(), DoubleArgumentType.getDouble(context, "amount"), EntityArgument.getPlayer(context, "player"))))))
 
-                                EconomyManager.withdraw(target.getUUID(), cents);
-                                syncPlayerState(target);
-
-                                String formatted = String.format(Locale.US, "$%.2f", amountDollars);
-                                context.getSource().sendSuccess(() -> Component.literal("§a[AE] Took " + formatted + " from " + target.getScoreboardName()), true);
-                                return 1;
-                            }))))
-                // /ae setmoney <player> <amount> (OP command)
+                // 4. /ae setmoney <amount> [player]
                 .then(Commands.literal("setmoney").requires(AdvancedEconomicsFabric::isOperator)
-                    .then(Commands.argument("target", EntityArgument.player())
-                        .then(Commands.argument("amount", DoubleArgumentType.doubleArg(0.0))
-                            .executes(context -> {
-                                ServerPlayer target = EntityArgument.getPlayer(context, "target");
-                                double amountDollars = DoubleArgumentType.getDouble(context, "amount");
-                                long cents = Math.round(amountDollars * 100.0);
+                    .then(Commands.argument("amount", DoubleArgumentType.doubleArg(0.0))
+                        .executes(context -> executeSetMoney(context.getSource(), DoubleArgumentType.getDouble(context, "amount"), context.getSource().getPlayerOrException()))
+                        .then(Commands.argument("player", EntityArgument.player())
+                            .executes(context -> executeSetMoney(context.getSource(), DoubleArgumentType.getDouble(context, "amount"), EntityArgument.getPlayer(context, "player"))))))
 
-                                EconomyManager.setBalance(target.getUUID(), cents);
-                                syncPlayerState(target);
-
-                                String formatted = String.format(Locale.US, "$%.2f", amountDollars);
-                                context.getSource().sendSuccess(() -> Component.literal("§a[AE] Set " + target.getScoreboardName() + "'s balance to " + formatted), true);
-                                return 1;
-                            }))))
-                // /ae setlevel <player> <level> (OP command)
+                // 5. /ae setlevel <level> [player]
                 .then(Commands.literal("setlevel").requires(AdvancedEconomicsFabric::isOperator)
-                    .then(Commands.argument("target", EntityArgument.player())
-                        .then(Commands.argument("level", IntegerArgumentType.integer(1))
-                            .executes(context -> {
-                                ServerPlayer target = EntityArgument.getPlayer(context, "target");
-                                int level = IntegerArgumentType.getInteger(context, "level");
+                    .then(Commands.argument("level", IntegerArgumentType.integer(1))
+                        .executes(context -> executeSetLevel(context.getSource(), IntegerArgumentType.getInteger(context, "level"), context.getSource().getPlayerOrException()))
+                        .then(Commands.argument("player", EntityArgument.player())
+                            .executes(context -> executeSetLevel(context.getSource(), IntegerArgumentType.getInteger(context, "level"), EntityArgument.getPlayer(context, "player"))))))
 
-                                ProfessionManager.PlayerProfessionState state = ProfessionManager.getPlayerState(target.getUUID());
-                                state.level = level;
-                                state.xp = 0;
-
-                                syncPlayerState(target);
-                                context.getSource().sendSuccess(() -> Component.literal("§a[AE] Set " + target.getScoreboardName() + "'s level to " + level), true);
-                                return 1;
-                            }))))
-                // /ae addxp <player> <amount> (OP command)
+                // 6. /ae addxp <amount> [player]
                 .then(Commands.literal("addxp").requires(AdvancedEconomicsFabric::isOperator)
-                    .then(Commands.argument("target", EntityArgument.player())
-                        .then(Commands.argument("xp", IntegerArgumentType.integer(1))
-                            .executes(context -> {
-                                ServerPlayer target = EntityArgument.getPlayer(context, "target");
-                                int xp = IntegerArgumentType.getInteger(context, "xp");
+                    .then(Commands.argument("amount", IntegerArgumentType.integer(1))
+                        .executes(context -> executeAddXp(context.getSource(), IntegerArgumentType.getInteger(context, "amount"), context.getSource().getPlayerOrException()))
+                        .then(Commands.argument("player", EntityArgument.player())
+                            .executes(context -> executeAddXp(context.getSource(), IntegerArgumentType.getInteger(context, "amount"), EntityArgument.getPlayer(context, "player"))))))
 
-                                ProfessionManager.addXp(target.getUUID(), xp);
-                                syncPlayerState(target);
+                // 7. /ae buy <item> [quantity]
+                .then(Commands.literal("buy")
+                    .then(Commands.argument("item", StringArgumentType.word())
+                        .executes(context -> executeBuyCmd(context.getSource(), StringArgumentType.getString(context, "item"), 1))
+                        .then(Commands.argument("quantity", IntegerArgumentType.integer(1, 640))
+                            .executes(context -> executeBuyCmd(context.getSource(), StringArgumentType.getString(context, "item"), IntegerArgumentType.getInteger(context, "quantity"))))))
 
-                                context.getSource().sendSuccess(() -> Component.literal("§a[AE] Added " + xp + " XP to " + target.getScoreboardName()), true);
-                                return 1;
-                            }))))
+                // 8. /ae sell [item] [quantity]
+                .then(Commands.literal("sell")
+                    .executes(context -> executeSellHeldCmd(context.getSource(), 1))
+                    .then(Commands.argument("item", StringArgumentType.word())
+                        .executes(context -> executeSellCmd(context.getSource(), StringArgumentType.getString(context, "item"), 1))
+                        .then(Commands.argument("quantity", IntegerArgumentType.integer(1, 640))
+                            .executes(context -> executeSellCmd(context.getSource(), StringArgumentType.getString(context, "item"), IntegerArgumentType.getInteger(context, "quantity"))))))
+
+                // 9. /ae unlock <item>
+                .then(Commands.literal("unlock")
+                    .then(Commands.argument("item", StringArgumentType.word())
+                        .executes(context -> executeUnlockCmd(context.getSource(), StringArgumentType.getString(context, "item")))))
             );
         });
+    }
+
+    private static int executeGive(CommandSourceStack source, double amountDollars, ServerPlayer target) {
+        long cents = Math.round(amountDollars * 100.0);
+        EconomyManager.deposit(target.getUUID(), cents);
+        syncPlayerState(target);
+        String formatted = String.format(Locale.US, "$%.2f", amountDollars);
+        source.sendSuccess(() -> Component.literal("§a[AE] Gave " + formatted + " to " + target.getScoreboardName()), true);
+        return 1;
+    }
+
+    private static int executeTake(CommandSourceStack source, double amountDollars, ServerPlayer target) {
+        long cents = Math.round(amountDollars * 100.0);
+        EconomyManager.withdraw(target.getUUID(), cents);
+        syncPlayerState(target);
+        String formatted = String.format(Locale.US, "$%.2f", amountDollars);
+        source.sendSuccess(() -> Component.literal("§a[AE] Took " + formatted + " from " + target.getScoreboardName()), true);
+        return 1;
+    }
+
+    private static int executeSetMoney(CommandSourceStack source, double amountDollars, ServerPlayer target) {
+        long cents = Math.round(amountDollars * 100.0);
+        EconomyManager.setBalance(target.getUUID(), cents);
+        syncPlayerState(target);
+        String formatted = String.format(Locale.US, "$%.2f", amountDollars);
+        source.sendSuccess(() -> Component.literal("§a[AE] Set " + target.getScoreboardName() + "'s balance to " + formatted), true);
+        return 1;
+    }
+
+    private static int executeSetLevel(CommandSourceStack source, int level, ServerPlayer target) {
+        ProfessionManager.PlayerProfessionState state = ProfessionManager.getPlayerState(target.getUUID());
+        state.level = level;
+        state.xp = 0;
+        syncPlayerState(target);
+        source.sendSuccess(() -> Component.literal("§a[AE] Set " + target.getScoreboardName() + "'s profession level to " + level), true);
+        return 1;
+    }
+
+    private static int executeAddXp(CommandSourceStack source, int xp, ServerPlayer target) {
+        ProfessionManager.addXp(target.getUUID(), xp);
+        syncPlayerState(target);
+        source.sendSuccess(() -> Component.literal("§a[AE] Added " + xp + " XP to " + target.getScoreboardName()), true);
+        return 1;
+    }
+
+    private static int executeBuyCmd(CommandSourceStack source, String itemId, int quantity) {
+        try {
+            ServerPlayer player = source.getPlayerOrException();
+            ShopItem shopItem = ShopTable.findById(itemId);
+            if (shopItem == null) {
+                source.sendFailure(Component.literal("§c[AE] Unknown item: " + itemId));
+                return 0;
+            }
+            if (!PlayerUnlockManager.isUnlocked(player.getUUID(), shopItem.id())) {
+                source.sendFailure(Component.literal("§c[AE] Item " + shopItem.displayName() + " is locked!"));
+                return 0;
+            }
+            return executeBuyItem(player, shopItem, quantity);
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    private static int executeBuyItem(ServerPlayer player, ShopItem shopItem, int quantity) {
+        double totalCostDollars = ShopSettings.calculateBuyPrice(shopItem.basePrice()) * quantity;
+        long totalCostCents = Math.round(totalCostDollars * 100.0);
+
+        if (EconomyManager.withdraw(player.getUUID(), totalCostCents)) {
+            Item mcItem = BuiltInRegistries.ITEM.getValue(Identifier.fromNamespaceAndPath("minecraft", shopItem.id()));
+            if (mcItem != null && mcItem != Items.AIR) {
+                player.getInventory().add(new ItemStack(mcItem, quantity));
+            }
+            syncPlayerState(player);
+            String formatted = String.format(Locale.US, "$%.2f", totalCostDollars);
+            player.sendSystemMessage(Component.literal("§a[AE] Purchased " + quantity + "x " + shopItem.displayName() + " for " + formatted));
+            return 1;
+        } else {
+            player.sendSystemMessage(Component.literal("§c[AE] Insufficient funds!"));
+            return 0;
+        }
+    }
+
+    private static int executeSellCmd(CommandSourceStack source, String itemId, int quantity) {
+        try {
+            ServerPlayer player = source.getPlayerOrException();
+            ShopItem shopItem = ShopTable.findById(itemId);
+            if (shopItem == null) {
+                source.sendFailure(Component.literal("§c[AE] Unknown item: " + itemId));
+                return 0;
+            }
+            return executeSellItem(player, shopItem, quantity);
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    private static int executeSellHeldCmd(CommandSourceStack source, int quantity) {
+        try {
+            ServerPlayer player = source.getPlayerOrException();
+            ItemStack mainHand = player.getMainHandItem();
+            if (mainHand.isEmpty()) {
+                source.sendFailure(Component.literal("§c[AE] You are not holding any item to sell!"));
+                return 0;
+            }
+            Identifier id = BuiltInRegistries.ITEM.getKey(mainHand.getItem());
+            ShopItem shopItem = ShopTable.findById(id.getPath());
+            if (shopItem == null) {
+                source.sendFailure(Component.literal("§c[AE] Item " + mainHand.getHoverName().getString() + " cannot be sold!"));
+                return 0;
+            }
+            return executeSellItem(player, shopItem, quantity);
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    private static int executeSellItem(ServerPlayer player, ShopItem shopItem, int quantity) {
+        Item mcItem = BuiltInRegistries.ITEM.getValue(Identifier.fromNamespaceAndPath("minecraft", shopItem.id()));
+        if (mcItem == null || mcItem == Items.AIR) return 0;
+
+        int remainingToSell = quantity;
+        int countSold = 0;
+
+        for (int i = 0; i < player.getInventory().getContainerSize() && remainingToSell > 0; i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (!stack.isEmpty() && stack.is(mcItem)) {
+                int take = Math.min(stack.getCount(), remainingToSell);
+                stack.shrink(take);
+                remainingToSell -= take;
+                countSold += take;
+            }
+        }
+
+        if (countSold > 0) {
+            double basePayoutDollars = ShopSettings.calculateSellPrice(shopItem.basePrice()) * countSold;
+            double bonusRatio = ProfessionManager.getProfessionSellBonusRatio(player.getUUID(), shopItem.id());
+            double finalPayoutDollars = basePayoutDollars * bonusRatio;
+
+            long payoutCents = Math.max(1L, Math.round(finalPayoutDollars * 100.0));
+            long xpAmount = Math.max(1L, Math.round(shopItem.basePrice() * 100.0 * countSold));
+
+            ProfessionManager.addXp(player.getUUID(), xpAmount);
+            EconomyManager.deposit(player.getUUID(), payoutCents);
+            syncPlayerState(player);
+
+            String formatted = String.format(Locale.US, "$%.2f", finalPayoutDollars);
+            player.sendSystemMessage(Component.literal("§a[AE] Sold " + countSold + "x " + shopItem.displayName() + " for " + formatted));
+            return 1;
+        } else {
+            player.sendSystemMessage(Component.literal("§c[AE] You don't have " + shopItem.displayName() + " in your inventory to sell!"));
+            return 0;
+        }
+    }
+
+    private static int executeUnlockCmd(CommandSourceStack source, String itemId) {
+        try {
+            ServerPlayer player = source.getPlayerOrException();
+            ShopItem shopItem = ShopTable.findById(itemId);
+            if (shopItem == null) {
+                source.sendFailure(Component.literal("§c[AE] Unknown item: " + itemId));
+                return 0;
+            }
+            if (PlayerUnlockManager.isUnlocked(player.getUUID(), shopItem.id())) {
+                source.sendSystemMessage(Component.literal("§a[AE] Item " + shopItem.displayName() + " is already unlocked!"));
+                return 1;
+            }
+
+            double costDollars = ShopSettings.calculateUnlockPrice(shopItem.basePrice());
+            long costCents = Math.round(costDollars * 100.0);
+
+            if (EconomyManager.withdraw(player.getUUID(), costCents)) {
+                PlayerUnlockManager.unlock(player.getUUID(), shopItem.id());
+                syncPlayerState(player);
+
+                String formatted = String.format(Locale.US, "$%.2f", costDollars);
+                player.sendSystemMessage(Component.literal("§a[AE] Unlocked " + shopItem.displayName() + " for " + formatted));
+                return 1;
+            } else {
+                player.sendSystemMessage(Component.literal("§c[AE] Insufficient funds to unlock " + shopItem.displayName() + "!"));
+                return 0;
+            }
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     private boolean scanAndUnlockInventory(ServerPlayer player) {
