@@ -460,7 +460,9 @@ public class EconomicsBoxScreen extends Screen {
             disabledBtn.active = true;
         }
 
-        // Pass 5: Re-render non-selected tab buttons with locked texture sprite and bright white text (0xFFFFFFFF)
+        // Pass 5: Draw a dark translucent overlay over inactive tabs + white text.
+        // IMPORTANT: active is NEVER set to false on tab buttons — that would trigger cursor change.
+        // Instead, paint a semi-transparent dark rect over them to create the "inactive" look.
         int btnY = boxY - BTN_HEIGHT - BTN_MARGIN;
         int visualLeft = boxX - BORDER;
 
@@ -468,22 +470,17 @@ public class EconomicsBoxScreen extends Screen {
         int profX = visualLeft + BTN_WIDTH + BTN_GAP;
         int setX  = visualLeft + (BTN_WIDTH + BTN_GAP) * 2;
 
-        if (shopTabBtn != null && activeTab != Tab.SHOP) {
-            shopTabBtn.active = false;
-            shopTabBtn.extractRenderState(graphics, mouseX, mouseY, delta);
-            shopTabBtn.active = true;
+        if (activeTab != Tab.SHOP) {
+            // Dark overlay over the shop tab button to make it look inactive
+            graphics.fill(shopX, btnY, shopX + BTN_WIDTH, btnY + BTN_HEIGHT, 0x88000000);
             graphics.centeredText(this.getFont(), Component.literal("Shop"), shopX + BTN_WIDTH / 2, btnY + 5, 0xFFFFFFFF);
         }
-        if (profTabBtn != null && activeTab != Tab.PROFESSION) {
-            profTabBtn.active = false;
-            profTabBtn.extractRenderState(graphics, mouseX, mouseY, delta);
-            profTabBtn.active = true;
+        if (activeTab != Tab.PROFESSION) {
+            graphics.fill(profX, btnY, profX + BTN_WIDTH, btnY + BTN_HEIGHT, 0x88000000);
             graphics.centeredText(this.getFont(), Component.literal("Profession"), profX + BTN_WIDTH / 2, btnY + 5, 0xFFFFFFFF);
         }
-        if (setTabBtn != null && activeTab != Tab.SETTINGS) {
-            setTabBtn.active = false;
-            setTabBtn.extractRenderState(graphics, mouseX, mouseY, delta);
-            setTabBtn.active = true;
+        if (activeTab != Tab.SETTINGS) {
+            graphics.fill(setX, btnY, setX + BTN_WIDTH, btnY + BTN_HEIGHT, 0x88000000);
             graphics.centeredText(this.getFont(), Component.literal("Settings"), setX + BTN_WIDTH / 2, btnY + 5, 0xFFFFFFFF);
         }
     }
