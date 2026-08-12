@@ -22,21 +22,24 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.Rarity;
 
 import java.io.File;
 import java.util.Locale;
 import java.util.Set;
 
 /**
- * Main Fabric Initializer (v0.38).
- * Enforces economy settings & feature toggles on serverbound requests.
+ * Main Fabric Initializer (v0.41).
+ * Indexes 100% of all vanilla Minecraft items (1,400+) into the shop table!
  */
 public class AdvancedEconomicsFabric implements ModInitializer {
 
@@ -59,10 +62,13 @@ public class AdvancedEconomicsFabric implements ModInitializer {
         PayloadTypeRegistry.serverboundPlay().register(RequestUpdateSettingsPayload.TYPE, RequestUpdateSettingsPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RequestSetProfessionPayload.TYPE, RequestSetProfessionPayload.CODEC);
 
-        // 3. Register Unified /ae Commands Suite
+        // 3. Register Commands Suite (/ae)
         registerCommands();
 
-        // 4. World Lifecycle Events
+        // 4. Index ALL 1,400+ Minecraft Items into ShopTable!
+        registerAllMinecraftItems();
+
+        // 5. World Lifecycle Events
         ServerLifecycleEvents.SERVER_STARTING.register(server -> {
             File worldDir = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT).toFile();
             File aeDataDir = new File(worldDir, "data/advanced_economics");
@@ -90,14 +96,14 @@ public class AdvancedEconomicsFabric implements ModInitializer {
             PlayerUnlockManager.save(aeDataDir);
         });
 
-        // 5. Sync & Auto-unlock inventory items on Player Join
+        // 6. Sync & Auto-unlock inventory items on Player Join
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayer player = handler.player;
             scanAndUnlockInventory(player);
             syncPlayerState(player);
         });
 
-        // 6. Serverbound Packet Handlers
+        // 7. Serverbound Packet Handlers
         ServerPlayNetworking.registerGlobalReceiver(RequestSetProfessionPayload.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();
             if (player != null && ShopSettings.isEnableProfessions()) {
@@ -155,7 +161,7 @@ public class AdvancedEconomicsFabric implements ModInitializer {
             }
         });
 
-        // 7. Continuous Inventory Scanner (Every 10 ticks / 0.5 seconds)
+        // 8. Continuous Inventory Scanner (Every 10 ticks / 0.5 seconds)
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             tickCounter++;
             if (tickCounter % 10 == 0) {
@@ -167,7 +173,68 @@ public class AdvancedEconomicsFabric implements ModInitializer {
             }
         });
 
-        AdvancedEconomicsCommon.LOGGER.info("Advanced Economics Fabric fully initialized.");
+        AdvancedEconomicsCommon.LOGGER.info("Advanced Economics Fabric fully initialized with {} shop items.", ShopTable.getItems().size());
+    }
+
+    private static void registerAllMinecraftItems() {
+        try {
+            for (Identifier key : BuiltInRegistries.ITEM.keySet()) {
+                String path = key.getPath();
+                if (ShopTable.isProcessed(path)) continue;
+
+                Item item = BuiltInRegistries.ITEM.getValue(key);
+                if (item == null || item == Items.AIR) continue;
+
+                double price = calculateDynamicPrice(item, path);
+                String displayName = formatDisplayName(path);
+
+                ShopTable.registerDynamicItem(path, displayName, price);
+            }
+        } catch (Throwable t) {
+            AdvancedEconomicsCommon.LOGGER.error("[AE] Failed to scan Minecraft items: {}", t.getMessage());
+        }
+    }
+
+    private static double calculateDynamicPrice(Item item, String path) {
+        try {
+            Rarity rarity = item.components().getOrDefault(DataComponents.RARITY, Rarity.COMMON);
+            if (rarity == Rarity.EPIC) return 50.0;
+            if (rarity == Rarity.RARE) return 10.0;
+            if (rarity == Rarity.UNCOMMON) return 2.0;
+
+            int maxDamage = item.components().getOrDefault(DataComponents.MAX_DAMAGE, 0);
+            if (maxDamage > 0) {
+                return Math.max(0.10, Math.round(maxDamage * 0.003 * 100.0) / 100.0);
+            }
+
+            FoodProperties food = item.components().get(DataComponents.FOOD);
+            if (food != null) {
+                double val = (food.nutrition() * 0.02) + (food.saturation() * 0.03);
+                return Math.max(0.02, Math.round(val * 100.0) / 100.0);
+            }
+        } catch (Throwable ignored) {}
+
+        if (path.contains("spawn_egg")) return 15.0;
+        if (path.contains("music_disc")) return 12.0;
+        if (path.contains("pattern") || path.contains("template")) return 8.0;
+        if (path.contains("slab") || path.contains("stairs") || path.contains("wall")) return 0.01;
+        if (path.contains("banner") || path.contains("carpet") || path.contains("candle")) return 0.03;
+        if (path.contains("dye") || path.contains("flower") || path.contains("sapling")) return 0.02;
+
+        return 0.05;
+    }
+
+    private static String formatDisplayName(String id) {
+        String[] words = id.split("_");
+        StringBuilder sb = new StringBuilder();
+        for (String w : words) {
+            if (!w.isEmpty()) {
+                sb.append(Character.toUpperCase(w.charAt(0)))
+                  .append(w.substring(1))
+                  .append(" ");
+            }
+        }
+        return sb.toString().trim();
     }
 
     private static boolean isOperator(CommandSourceStack src) {
